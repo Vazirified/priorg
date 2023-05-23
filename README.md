@@ -7,5 +7,5 @@ PRIORG core modules will create/sync a local collections of ICS files from a rem
 
 ---
 
-Other features, probable future modules of the PIM, future data-structures and the details of PRIORG method for prioritizing tasks will be discussed after the release of an initial working command-line/TUI version that includes synchronization, priority evaluation, editor and viewer modules.
-Project progress until the initial release is tracked through the [issues](https://github.com/Vazirified/priorg/issues) section and this README file is updated in each step.
+Other features, probable future modules of the PIM, future data-structures and the details of PRIORG method for prioritizing tasks will be discussed after the release of an initial working command-line/TUI version that includes synchronization, priority evaluation, editor and viewer modules. Project progress until the initial release is tracked through the [issues](https://github.com/Vazirified/priorg/issues) section and this README file is updated in each step.
+Any feature other than core modules and basic functionalities will be initiated, tracked and brainstormed in [discussions](https://github.com/Vazirified/priorg/discussions) section.
