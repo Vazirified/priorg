@@ -3,7 +3,7 @@ PRIORG organizer, personal information manager and priority scheduler system
 
 ---
 
-PRIORG core modules will create/sync a local collections of ICS files from a remote CalDAV server VTODO items, edits the files using a human readable method with MarkDown to store and read/parse the required additional data in VTODO items' descriptions and creates a couple of additional VCALENDAR entries to store data that are independent from the tasks/assignments but are required for the methods and algorithms to work and finally synchronizes them back to the server. The results of prioritizing tasks with PRIORG will be stored as the priority number of the VCALENDAR items, so that other applications can use the results with their priority sorted views, but core modules for creating/viewing/editing tasks/assignments are also included.
+PRIORG core modules will create/sync a local collections of ICS files from a remote CalDAV server VTODO items, edits the files using a human-readable method with MarkDown to store and read/parse the required additional data in VTODO items' descriptions and creates a couple of additional VCALENDAR entries to store data that are independent of the tasks/assignments but are required for the methods and algorithms to work and finally synchronizes them back to the server. The results of prioritizing tasks with PRIORG will be stored as the priority number of the VCALENDAR items, so that other applications can use the results with their priority sorted views, but core modules for creating/viewing/editing tasks/assignments are also included.
 
 ---
 
