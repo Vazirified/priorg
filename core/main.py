@@ -14,7 +14,6 @@ from configuration import *
 # Credentials are retrieved from OS keychain and used to establish a connection/session with the remote CalDAV server.
 # Then a client object is formed by assigning all principle properties of the session to server_object and a list of
 # calendars on the server is built as server_calendars.
-# TODO: Remember to close the established session to server in the end.
 # TODO: Write code to manage username and password of the CalDAV server in they OS keychain through keyring. The remote
 #  username/password are saved to ("priorg-caldav", "username", "password") and the username can be accessed from
 #  ("priorg-caldav", "priorg", "username").
@@ -45,3 +44,6 @@ for server_todo in server_todos:
 #     data = json.load(working_file)
 with open(local_files_path + 'server_todo_hashes.json', 'w') as working_file:
     json.dump(server_todo_hashes, working_file, indent=4)
+
+# Connection/session with server is closed.
+server_session.close()
