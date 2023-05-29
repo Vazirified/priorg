@@ -29,8 +29,7 @@ server_object = server_session.principal()
 server_calendars = server_object.calendars()
 
 # Calendars are iterated and all VTODO items are fetched from user's birthday up to 100 years into the future!
+# VTODOs are stored in server_todos list.
 server_todos = []
 for calendar in server_calendars:
-    server_todos.extend(calendar.search(start=datetime(user_birthday[0], user_birthday[1], user_birthday[2]),
-                                        end=datetime(date.today().year + 100, 1, 1),
-                                        todo=True, expand=True))
+    server_todos.extend(calendar.todos())
