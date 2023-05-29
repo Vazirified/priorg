@@ -3,17 +3,12 @@ import vobject
 import caldav
 import os
 import json
-import datetime
 import hashlib
 import keyring
-
 import sys
-from datetime import date
-from datetime import datetime
-from datetime import timedelta
 
 # Configuration variables are imported/accessed.
-# TODO: Change code to manage server url in a local configuration.py file.
+# TODO: Write a setup utility to create/edit configuration.py file.
 from configuration import *
 
 # Credentials are retrieved from OS keychain and used to establish a connection/session with the remote CalDAV server.
