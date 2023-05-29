@@ -28,7 +28,7 @@ server_session = caldav.DAVClient(url=server_url,
 server_object = server_session.principal()
 server_calendars = server_object.calendars()
 
-# Calendars are iterated and all VTODO items are fetched from user's birthday up to 100 years into the future!
+# Calendars are iterated and all VTODO items are fetched.
 # VTODOs are stored in server_todos list.
 server_todos = []
 for calendar in server_calendars:
