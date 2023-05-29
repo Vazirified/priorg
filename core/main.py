@@ -38,7 +38,7 @@ for server_todo in server_todos:
     server_todo_hashes[working_todo[working_todo.find("}") + 1 : working_todo.find(">")]] = \
         hashlib.sha256(str(server_todo.instance).encode('utf-8')).hexdigest()
 
-# "server_todo_hashes" is written to a file in the "local_files_path" with server_todo_hashes.json filename. JSON in
+# "server_todo_hashes" is written to a file in the "local_files_path" with server_todo_hashes.json filename. JSON is
 # intentionally chosen so that the hashes dictionary stays human-readable.
 # While staying human-readable, the dictionary can easily be read back with:
 # with open(local_files_path + 'server_todo_hashes.json', 'r') as working_file:
