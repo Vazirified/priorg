@@ -1,3 +1,4 @@
+# TODO: Integrate this module with synchronizer.py if not used anywhere else.
 import os
 from configuration import *
 
