@@ -14,9 +14,9 @@ from configuration import *
 # Credentials are retrieved from OS keychain and used to establish a connection/session with the remote CalDAV server.
 # Then a client object is formed by assigning all principle properties of the session to server_object and a list of
 # calendars on the server is built as server_calendars.
-# TODO: Write code to manage username and password of the CalDAV server in they OS keychain through keyring. The remote
-#  username/password are saved to ("priorg-caldav", "username", "password") and the username can be accessed from
-#  ("priorg-caldav", "priorg", "username").
+# TODO: Write a setup utility to manage username and password of the CalDAV server in they OS keychain through keyring.
+#  The remote username/password are saved to ("priorg-caldav", "username", "password") and the username can be accessed
+#  from ("priorg-caldav", "priorg", "username").
 server_session = caldav.DAVClient(url=server_url,
                                   username=keyring.get_password("priorg-caldav", "priorg"),
                                   password=keyring.get_password("priorg-caldav",
