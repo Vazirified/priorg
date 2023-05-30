@@ -47,3 +47,23 @@ with open(local_files_path + 'server_todo_hashes.json', 'w') as working_file:
 
 # Connection/session with server is closed.
 server_session.close()
+
+# Another dictionary is created from the local ICS file with their UID and the SHA256 digest of their content as
+# local_todo_hashes.
+local_todo_hashes = {}
+for file in os.listdir(local_files_path):
+    if file.endswith('.ics'):
+        # print(file.replace('.ics', ''))
+        with open(local_files_path + file, 'r') as todo_file:
+            local_todo = vobject.base.readOne(todo_file)
+            working_todo = str(local_todo.vtodo.uid)
+            local_todo_hashes[working_todo[working_todo.find("}") + 1 : working_todo.find(">")]] = \
+                hashlib.sha256(str(local_todo).encode('utf-8')).hexdigest()
+
+# "local_todo_hashes" is written to a file in the "local_files_path" with local_todo_hashes.json filename. JSON is
+# intentionally chosen so that the hashes dictionary stays human-readable.
+# While staying human-readable, the dictionary can easily be read back with:
+# with open(local_files_path + 'local_todo_hashes.json', 'r') as working_file:
+#     data = json.load(working_file)
+with open(local_files_path + 'local_todo_hashes.json', 'w') as working_file:
+    json.dump(local_todo_hashes, working_file, indent=4)
