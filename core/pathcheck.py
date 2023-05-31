@@ -11,6 +11,7 @@ def file_check(path_to_check, file_to_check):
         open(path_to_check + file_to_check, 'x').close()
 
 directory_check(local_files_path)
+directory_check(local_files_path + "synced/")
 file_check(local_files_path, "server_todo_hashes.json")
 file_check(local_files_path, "local_todo_hashes.json")
 file_check(local_files_path, "synced_todo_hashes.json")
