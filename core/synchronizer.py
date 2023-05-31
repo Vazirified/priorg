@@ -48,12 +48,13 @@ with open(local_files_path + 'server_todo_hashes.json', 'w') as working_file:
 # Connection/session with server is closed.
 server_session.close()
 
+# TODO: Write an ICS files UID/SHA256hash generator function and call it twice instead of writing the code below twice!
+
 # Another dictionary is created from the local ICS file with their UID and the SHA256 digest of their content as
 # local_todo_hashes.
 local_todo_hashes = {}
 for file in os.listdir(local_files_path):
     if file.endswith('.ics'):
-        # print(file.replace('.ics', ''))
         with open(local_files_path + file, 'r') as todo_file:
             local_todo = vobject.base.readOne(todo_file)
             working_todo = str(local_todo.vtodo.uid)
@@ -67,3 +68,19 @@ for file in os.listdir(local_files_path):
 #     data = json.load(working_file)
 with open(local_files_path + 'local_todo_hashes.json', 'w') as working_file:
     json.dump(local_todo_hashes, working_file, indent=4)
+
+# Another dictionary is created from the local "synced" ICS file with their UID and the SHA256 digest of their content
+# as local_todo_hashes.
+synced_todo_hashes = {}
+for file in os.listdir(local_files_path + "synced/"):
+    if file.endswith('.ics'):
+        with open(local_files_path + "synced/" + file, 'r') as todo_file:
+            synced_todo = vobject.base.readOne(todo_file)
+            working_todo = str(synced_todo.vtodo.uid)
+            synced_todo_hashes[working_todo[working_todo.find("}") + 1 : working_todo.find(">")]] = \
+                hashlib.sha256(str(synced_todo).encode('utf-8')).hexdigest()
+
+# "synced_todo_hashes" is written to a file in the "local_files_path" with synced_todo_hashes.json filename. JSON is
+# intentionally chosen so that the hashes dictionary stays human-readable.
+with open(local_files_path + 'synced_todo_hashes.json', 'w') as working_file:
+    json.dump(synced_todo_hashes, working_file, indent=4)
