@@ -58,6 +58,14 @@ for file in os.listdir(local_files_path):
 # with open(local_files_path + 'local_todo_hashes.json', 'w') as working_file:
 #     json.dump(local_todo_hashes, working_file, indent=4)
 
+# Previously saved UID/hashes from the last synchronization are read back in from the JSON file. This file will be
+# updated after synchronization.
+with open(local_files_path + 'synced_todo_hashes.json', 'r') as working_file:
+    synced_todo_hashes = json.load(working_file)
+
+# We now have three dictionaries containing UID/hash pairs. By comparing these, we should be able to understand what
+# needs to be synced and in which way.
+
 # =====================================================================================================================
 # Make sure that local files are in sync before creating the UID/hashes dictionary and dumping it to the JSON file.
 # This means that synchronization must happen above this comment.
@@ -76,9 +84,7 @@ for file in os.listdir(local_files_path):
 
 # "synced_todo_hashes" is written to a file in the "local_files_path" with synced_todo_hashes.json filename. JSON is
 # intentionally chosen so that the hashes dictionary stays human-readable.
-# While staying human-readable, the dictionary can easily be read back with the following two lines of code:
-#                                          with open(local_files_path + 'synced_todo_hashes.json', 'r') as working_file:
-#                                              data = json.load(working_file)
+
 with open(local_files_path + 'synced_todo_hashes.json', 'w') as working_file:
     json.dump(synced_todo_hashes, working_file, indent=4)
 
