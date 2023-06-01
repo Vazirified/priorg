@@ -66,6 +66,11 @@ with open(local_files_path + 'synced_todo_hashes.json', 'r') as working_file:
 # We now have three dictionaries containing UID/hash pairs. By comparing these, we should be able to understand what
 # needs to be synced and in which way.
 
+# "no_dup_uids" is a list of all keys from the three dictionaries with duplicates removed. We will use this to iterate
+# on all dictionaries and check for existence of keys...
+uids = list(server_todo_hashes.keys()) + list(local_todo_hashes.keys()) + list(synced_todo_hashes.keys())
+no_dup_uids = list(set(uids))
+
 # =====================================================================================================================
 # Make sure that local files are in sync before creating the UID/hashes dictionary and dumping it to the JSON file.
 # This means that synchronization must happen above this comment.
