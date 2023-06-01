@@ -32,7 +32,7 @@ for calendar in server_calendars:
 server_todo_hashes = {}
 for server_todo in server_todos:
     working_todo = str(server_todo.instance.vtodo.uid)
-    server_todo_hashes[working_todo[working_todo.find("}") + 1 : working_todo.find(">")]] = \
+    server_todo_hashes[working_todo[working_todo.find("}") + 1: working_todo.find(">")]] = \
         hashlib.sha256(str(server_todo.instance).encode('utf-8')).hexdigest()
 
 # "server_todo_hashes" is written to a file in the "local_files_path" with server_todo_hashes.json filename. JSON is
@@ -50,7 +50,7 @@ for file in os.listdir(local_files_path):
         with open(local_files_path + file, 'r') as todo_file:
             local_todo = vobject.base.readOne(todo_file)
             working_todo = str(local_todo.vtodo.uid)
-            local_todo_hashes[working_todo[working_todo.find("}") + 1 : working_todo.find(">")]] = \
+            local_todo_hashes[working_todo[working_todo.find("}") + 1: working_todo.find(">")]] = \
                 hashlib.sha256(str(local_todo).encode('utf-8')).hexdigest()
 
 # "local_todo_hashes" is written to a file in the "local_files_path" with local_todo_hashes.json filename. JSON is
@@ -84,7 +84,7 @@ for file in os.listdir(local_files_path):
         with open(local_files_path + file, 'r') as todo_file:
             synced_todo = vobject.base.readOne(todo_file)
             working_todo = str(synced_todo.vtodo.uid)
-            synced_todo_hashes[working_todo[working_todo.find("}") + 1 : working_todo.find(">")]] = \
+            synced_todo_hashes[working_todo[working_todo.find("}") + 1: working_todo.find(">")]] = \
                 hashlib.sha256(str(synced_todo).encode('utf-8')).hexdigest()
 
 # "synced_todo_hashes" is written to a file in the "local_files_path" with synced_todo_hashes.json filename. JSON is
