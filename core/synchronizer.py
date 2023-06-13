@@ -117,7 +117,7 @@ for uid_item in no_dup_uids:
         # not really exist! But let's include it for now and raise some kind of error if this happens...
         print("There seems to be a problem with the PRIORG data. ",
               "This can be an unknown problem with the server or the local filesystem, or the data is corrupted. ",
-              "You may need to check for the source of this error manually.")
+              "You may need to investigate this error manually before changing/synchronizing anything.")
 
 # =====================================================================================================================
 # Make sure that local files are in sync before creating the UID/hashes dictionary and dumping it to the JSON file.
