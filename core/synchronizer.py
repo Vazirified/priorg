@@ -103,7 +103,15 @@ for uid_item in no_dup_uids:
     elif uid_item not in server_todo_hashes and uid_item in local_todo_hashes and uid_item in synced_todo_hashes:
         # Item exists locally and was present after the previous synchronization, but is not on the server. Such an
         # item must have been deleted from the server between the two synchronizations and must be deleted locally too.
-        os.remove(local_files_path + uid_item + ".ics")
+        for file in os.listdir(local_files_path):
+            if file.endswith('.ics'):
+                with open(local_files_path + file, 'r') as todo_file:
+                    working_todo = vobject.base.readOne(todo_file)
+                    working_todo_uid = str(working_todo.vtodo.uid)
+                    working_todo_uid_parsed = working_todo_uid[
+                                              working_todo_uid.find("}") + 1: working_todo_uid.find(">")]
+                    if working_todo_uid_parsed == uid_item:
+                        os.remove(local_files_path + file)
     else:
         # This situation means that something has gone wrong as it is impossible to happen! This "else" statement should
         # not really exist! But let's include it for now and raise some kind of error if this happens...
