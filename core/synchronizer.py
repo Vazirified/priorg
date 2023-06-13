@@ -103,7 +103,7 @@ for uid_item in no_dup_uids:
     elif uid_item not in server_todo_hashes and uid_item in local_todo_hashes and uid_item in synced_todo_hashes:
         # Item exists locally and was present after the previous synchronization, but is not on the server. Such an
         # item must have been deleted from the server between the two synchronizations and must be deleted locally too.
-        pass
+        os.remove(local_files_path + uid_item + ".ics")
     else:
         # This situation means that something has gone wrong as it is impossible to happen! This "else" statement should
         # not really exist! But let's include it for now and raise some kind of error if this happens...
