@@ -107,7 +107,9 @@ for uid_item in no_dup_uids:
     else:
         # This situation means that something has gone wrong as it is impossible to happen! This "else" statement should
         # not really exist! But let's include it for now and raise some kind of error if this happens...
-        pass
+        print("There seems to be a problem with the PRIORG data. ",
+              "This can be an unknown problem with the server or the local filesystem, or the data is corrupted. ",
+              "You may need to check for the source of this error manually.")
 
 # =====================================================================================================================
 # Make sure that local files are in sync before creating the UID/hashes dictionary and dumping it to the JSON file.
