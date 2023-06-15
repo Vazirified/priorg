@@ -66,6 +66,20 @@ with open(local_files_path + 'synced_todo_hashes.json', 'r') as working_file:
 # We now have three dictionaries containing UID/hash pairs. By comparing these, we should be able to understand what
 # needs to be synced and in which way.
 
+# In the operations that write something to the server, we need to know which calendar to write to...
+# The calendar_selection function, when called, will ask the user to choose a calendar and returnes the index number of
+# that calendar for the operation to continue.
+def calendar_selection():
+    index_counter = 0
+    for discovered_calendar in server_calendars:
+        print(index_counter, ":", discovered_calendar)
+        index_counter += 1
+    default_calendar_index = int(input("Please enter the index number of your calendar of choice for current operation: "))
+    if default_calendar_index < 0 or default_calendar_index > index_counter - 1:
+        print("Your selection is not a valid item from the list. Defaulting to the first item")
+        return 0
+    return default_calendar_index
+
 # "no_dup_uids" is a list of all keys from the three dictionaries with duplicates removed. We will use this to iterate
 # on all dictionaries and check for existence of keys...
 uids = list(server_todo_hashes.keys()) + list(local_todo_hashes.keys()) + list(synced_todo_hashes.keys())
@@ -194,5 +208,3 @@ with open(local_files_path + 'synced_todo_hashes.json', 'w') as working_file:
 server_session.close()
 
 print("==============================================================================================================")
-for synced_item in synced_todo_hashes:
-    print(synced_item, ">>>", synced_todo_hashes[synced_item])
