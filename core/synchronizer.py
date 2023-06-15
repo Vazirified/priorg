@@ -5,7 +5,7 @@ import os
 import json
 import hashlib
 import keyring
-import sys
+from datetime import datetime
 # TODO: Write a setup utility to create/edit configuration.py file.
 from configuration import *
 
@@ -72,48 +72,85 @@ uids = list(server_todo_hashes.keys()) + list(local_todo_hashes.keys()) + list(s
 no_dup_uids = list(set(uids))
 
 for uid_item in no_dup_uids:
+# Condition below means the item exists in all dictionaries. We now have to check the hash and see if it is changed on
+# any side...
     if uid_item in server_todo_hashes and uid_item in local_todo_hashes and uid_item in synced_todo_hashes:
-        # This means the item exists in all dictionaries. We now have to check the hash and see if it is changed on
-        # any side...
         pass
 
+# The item below is only stored on the sever. It must have been created on the server in the interval between current
+# synchronization and the previous one. Such items must be created in the local copies.
     elif uid_item in server_todo_hashes and uid_item not in local_todo_hashes and uid_item not in synced_todo_hashes:
-        # This item is only stored on the sever. It must have been created on the server in the interval between current
-        # synchronization and the previous one. Such items must be created in the local copies.
         pass
 
+# The item below only exists locally. It must have been created locally between this synchronization and the previous
+# one. Such items must be created on the server.
     elif uid_item not in server_todo_hashes and uid_item in local_todo_hashes and uid_item not in synced_todo_hashes:
-        # This item only exists locally. It must have been created locally between this synchronization and the previous
-        # one. Such items must be created on the server.
         pass
 
+# The item below only exists in the synced list. This means that it was present everywhere during the last
+# synchronization but was deleted from both sides in the interval (which is a bit strange but can happen).
+# Such an item does not require any action. It will be deleted from the synced items dictionary at the end of
+# current synchronization automatically. We also need to issue a warning.
     elif uid_item not in server_todo_hashes and uid_item not in local_todo_hashes and uid_item in synced_todo_hashes:
-        # This item only exists in the synced list. This means that it was present everywhere during the last
-        # synchronization but was deleted from both sides in the interval (which is a bit strange but can happen).
-        # Such an item does not require any action. It will be deleted from the synced items dictionary at the end of
-        # current synchronization automatically. We also need to issue a warning.
         pass
 
+# Below item exists on server and locally, but it was not present in previous synchronization. This means that the
+# is miraculously created on both sides with the same UID between this sync and the last one.
+# We have to check the hashed on both sides and if not equal, the one with newer modification date must be
+# copied to the other side. We also need to issue a warning for this.
     elif uid_item in server_todo_hashes and uid_item in local_todo_hashes and uid_item not in synced_todo_hashes:
-        # Item exists on server and locally, but it was not present in previous synchronization. This means that the
-        # is miraculously created on both sides with the same UID between this sync and the last one.
-        # We have to check the hashed on both sides and if not equal, the one with newer modification date must be
-        # copied to the other side. We also need to issue a warning for this.
-        pass
+        print("Found and item that is created on both sides between this and previous sync!")
+        print("UID of this item is", uid_item)
+        if server_todo_hashes[uid_item] == local_todo_hashes[uid_item]:
+            print("This item has equal hashes on both sides.")
+        else:
+            print("This item has different hash values on different sides.")
+            for file in os.listdir(local_files_path):
+                if file.endswith('.ics'):
+                    with open(local_files_path + file, 'r') as todo_file:
+                        working_local_todo = vobject.base.readOne(todo_file)
+                        working_local_todo_uid = str(working_local_todo.vtodo.uid)
+                        working_local_todo_uid_parsed = working_local_todo_uid[
+                                                  working_local_todo_uid.find("}") + 1:
+                                                  working_local_todo_uid.find(">")]
+                        if working_local_todo_uid_parsed == uid_item:
+                            working_local_todo_modification = str(working_local_todo.vtodo.last_modified)
+                            working_local_todo_modification_parsed = working_local_todo_modification[
+                                                      working_local_todo_modification.find("}") + 1:
+                                                      working_local_todo_modification.find(">")]
+            for todo in server_todos:
+                working_server_todo_uid = str(todo.instance.vtodo.uid)
+                working_server_todo_uid_parsed = working_server_todo_uid[working_server_todo_uid.find("}") + 1:
+                                                                         working_server_todo_uid.find(">")]
+                if working_server_todo_uid_parsed == uid_item:
+                    working_server_todo_modification = str(todo.instance.vtodo.last_modified)
+                    working_server_todo_modification_parsed = working_server_todo_modification[
+                                                      working_server_todo_modification.find("}") + 1:
+                                                      working_server_todo_modification.find(">")]
+            working_local_todo_modification_datetime = datetime.strptime(working_local_todo_modification_parsed,
+                                                                         "%Y-%m-%d %H:%M:%S")
+            working_server_todo_modification_datetime = datetime.strptime(working_server_todo_modification_parsed,
+                                                                         "%Y-%m-%d %H:%M:%S")
+            if working_server_todo_modification_datetime > working_local_todo_modification_datetime:
+                print("Server copy was modified later.")
+            elif working_server_todo_modification_datetime < working_local_todo_modification_datetime:
+                print("Local copy was modified later.")
+            else:
+                print("Both modification date/times are the same. Taking server copy as source.")
 
+# Item below is on the server and was present after the previous synchronization, but does not exist locally. Such an
+# item must have been deleted locally between the two synchronizations and must be deleted from the server too.
     elif uid_item in server_todo_hashes and uid_item not in local_todo_hashes and uid_item in synced_todo_hashes:
-        # Item is on the server and was present after the previous synchronization, but does not exist locally. Such an
-        # item must have been deleted locally between the two synchronizations and must be deleted from the server too.
         for todo in server_todos:
-            print(todo)
-            working_todo_uid = str(todo.instance.vtodo.uid)
-            working_todo_uid_parsed = working_todo_uid[working_todo_uid.find("}") + 1: working_todo_uid.find(">")]
-            if working_todo_uid_parsed == uid_item:
+            working_server_todo_uid = str(todo.instance.vtodo.uid)
+            working_server_todo_uid_parsed = working_server_todo_uid[working_server_todo_uid.find("}") + 1:
+                                                                     working_server_todo_uid.find(">")]
+            if working_server_todo_uid_parsed == uid_item:
                 todo.delete()
 
+# Item below exists locally and was present after the previous synchronization, but is not on the server. Such an
+# item must have been deleted from the server between the two synchronizations and must be deleted locally too.
     elif uid_item not in server_todo_hashes and uid_item in local_todo_hashes and uid_item in synced_todo_hashes:
-        # Item exists locally and was present after the previous synchronization, but is not on the server. Such an
-        # item must have been deleted from the server between the two synchronizations and must be deleted locally too.
         for file in os.listdir(local_files_path):
             if file.endswith('.ics'):
                 with open(local_files_path + file, 'r') as todo_file:
@@ -124,9 +161,9 @@ for uid_item in no_dup_uids:
                     if working_todo_uid_parsed == uid_item:
                         os.remove(local_files_path + file)
 
+# Situation below means that something has gone wrong as it is impossible to happen! This "else" statement should
+# not really exist! But let's include it for now and raise some kind of error if this happens...
     else:
-        # This situation means that something has gone wrong as it is impossible to happen! This "else" statement should
-        # not really exist! But let's include it for now and raise some kind of error if this happens...
         print("There seems to be a problem with the PRIORG data. ",
               "This can be an unknown problem with the server or the local filesystem, or the data is corrupted. ",
               "You may need to investigate this error manually before changing/synchronizing anything.")
@@ -156,5 +193,6 @@ with open(local_files_path + 'synced_todo_hashes.json', 'w') as working_file:
 # Connection/session with server is closed.
 server_session.close()
 
+print("==============================================================================================================")
 for synced_item in synced_todo_hashes:
     print(synced_item, ">>>", synced_todo_hashes[synced_item])
