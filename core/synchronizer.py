@@ -112,7 +112,9 @@ for uid_item in no_dup_uids:
 #   Such an item does not require any action. It will be deleted from the synced items dictionary at the end of
 #   current synchronization automatically. We also need to issue a warning.
     elif uid_item not in server_todo_hashes and uid_item not in local_todo_hashes and uid_item in synced_todo_hashes:
-        pass
+        print("Item with UID", uid_item, "which was present after previous sync is now deleted both remotely and "
+                                         "locally between this and previous sync!")
+        print("No further action required.")
 
 # Below item exists on server and locally, but it was not present in previous synchronization. This means that the
 #   is miraculously created on both sides with the same UID between this sync and the last one.
