@@ -73,22 +73,25 @@ with open(local_files_path + 'synced_todo_hashes.json', 'r') as working_file:
 #   The calendar_selection function, when called, will ask the user to choose a calendar and returnes the index number
 #   of that calendar for the operation to continue.
 def calendar_selection():
-    index_counter = 0
-    for discovered_calendar in server_calendars:
-        print(index_counter, ":", discovered_calendar)
-        index_counter += 1
-    default_calendar_index = int(input("Please enter the index number of your calendar of choice for current operation: "))
-    if default_calendar_index < 0 or default_calendar_index > index_counter - 1:
-        print("Your selection is not a valid item from the list. Defaulting to the first item")
-        return 0
-    return default_calendar_index
+    if default_calendar == -1:
+        index_counter = 0
+        for discovered_calendar in server_calendars:
+            print(index_counter, ":", discovered_calendar)
+            index_counter += 1
+        default_calendar_index = int(input("Please enter the index number of your calendar of choice for current operation: "))
+        if default_calendar_index < 0 or default_calendar_index > index_counter - 1:
+            print("Your selection is not a valid item from the list. Defaulting to the first item")
+            return 0
+        return default_calendar_index
+    else:
+        return default_calendar
 
 # "no_dup_uids" is a list of all keys from the three dictionaries with duplicates removed. We will use this to iterate
 #   on all dictionaries and check for existence of keys...
 uids = list(server_todo_hashes.keys()) + list(local_todo_hashes.keys()) + list(synced_todo_hashes.keys())
 no_dup_uids = list(set(uids))
 
-# TODO: find repeating operations in each condition below and try to modularize them in pre-defined functions.
+# TODO: Find repeating operations in each condition below and try to modularize them in pre-defined functions.
 
 # Now we compare the dictionaries to determine the required sync operations for each UID item...
 for uid_item in no_dup_uids:
