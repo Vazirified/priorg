@@ -74,16 +74,19 @@ with open(local_files_path + 'synced_todo_hashes.json', 'r') as working_file:
 #   of that calendar for the operation to continue.
 def calendar_selection():
     if default_calendar == -1:
+        print("A default calendar was not found. User input is required to continue...")
         index_counter = 0
         for discovered_calendar in server_calendars:
             print(index_counter, ":", discovered_calendar)
             index_counter += 1
-        default_calendar_index = int(input("Please enter the index number of your calendar of choice for current operation: "))
+        default_calendar_index = int(input("Please enter the index number of your calendar of choice for current "
+                                           "operation: "))
         if default_calendar_index < 0 or default_calendar_index > index_counter - 1:
             print("Your selection is not a valid item from the list. Defaulting to the first item")
             return 0
         return default_calendar_index
     else:
+        print("A default calendar was found in configuration. Default calendar will be used to write to the server.")
         return default_calendar
 
 # "no_dup_uids" is a list of all keys from the three dictionaries with duplicates removed. We will use this to iterate
@@ -108,7 +111,20 @@ for uid_item in no_dup_uids:
 # The item below only exists locally. It must have been created locally between this synchronization and the previous
 #   one. Such items must be created on the server.
     elif uid_item not in server_todo_hashes and uid_item in local_todo_hashes and uid_item not in synced_todo_hashes:
-        pass
+        print("Item with UID", uid_item, "has been created after the previous synchronization and is not present on "
+              "The remote server. Local ICS file will be used as source to create the assignment on server.")
+        for file in os.listdir(local_files_path):
+            if file.endswith('.ics'):
+                with open(local_files_path + file, 'r') as todo_file:
+                    todo = vobject.base.readOne(todo_file)
+                    todo_uid = str(todo.vtodo.uid)
+                    todo_uid_parsed = todo_uid[todo_uid.find("}") + 1: todo_uid.find(">")]
+                    if todo_uid_parsed == uid_item:
+                        print(file,
+                              "Will be written to the server in the user selected or default calendar as a VTODO...")
+                        working_local_todo = todo
+                        server_calendars[calendar_selection()].save_todo(ical_fragment=working_local_todo.serialize())
+                        print("Done.")
 
 # The item below only exists in the synced list. This means that it was present everywhere during the last
 #   synchronization but was deleted from both sides in the interval (which is a bit strange but can happen).
