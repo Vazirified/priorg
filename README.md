@@ -1,4 +1,4 @@
-# priorg
+# PRIORG
 PRIORG organizer, personal information manager and priority scheduler system  
 
 ---
