@@ -9,17 +9,21 @@ from datetime import datetime
 # TODO: Write a setup utility to create/edit configuration.py file.
 from configuration import *
 
+# TODO: Wrap applicable parts in callable function definitions so that we can call them from the main procedures in
+#  the future. The functions that are used everywhere should naturally be taken out of this file, saved to a mutual
+#  modules file and imported in everywhere...
+
 # This 'if' statement will check if verbose_mode flag from configuration is set to true, in which case defined vprint
-#   function as such that it works as print function (so that all the verbose messages which are passed to vprint are
-#   actually printed), else, vprint function does nothing and the messages are not displayed.
+#  function as such that it works as print function (so that all the verbose messages which are passed to vprint are
+#  actually printed), else, vprint function does nothing and the messages are not displayed.
 if verbose_mode:
     vprint = print
 else:
     vprint = lambda string: None
 
 # In the operations that write something to the server, we need to know which calendar to write to...
-#   The calendar_selection function, when called, will ask the user to choose a calendar and returnes the index number
-#   of that calendar for the operation to continue.
+#  The calendar_selection function, when called, will ask the user to choose a calendar and returnes the index number
+#  of that calendar for the operation to continue.
 def calendar_selection():
     if default_calendar == -1:
         vprint("A default calendar was not found. User input is required to continue...")
@@ -38,8 +42,8 @@ def calendar_selection():
         return default_calendar
 
 # Credentials are retrieved from OS keychain and used to establish a connection/session with the remote CalDAV server.
-#   Then a client object is formed by assigning all principle properties of the session to server_object and a list of
-#   calendars on the server is built as server_calendars.
+#  Then a client object is formed by assigning all principle properties of the session to server_object and a list of
+#  calendars on the server is built as server_calendars.
 # TODO: Write a setup utility to manage username and password of the CalDAV server in they OS keychain through keyring.
 #  The remote username/password are saved to ("priorg-caldav", "username", "password") and the username can be accessed
 #  from ("priorg-caldav", "priorg", "username").
@@ -63,14 +67,14 @@ for server_todo in server_todos:
         hashlib.sha256(str(server_todo.instance).encode('utf-8')).hexdigest()
 
 # "server_todo_hashes" is written to a file in the "local_files_path" with server_todo_hashes.json filename. JSON is
-#   intentionally chosen so that the hashes dictionary stays human-readable.
-#   with open(local_files_path + 'server_todo_hashes.json', 'w') as working_file:
-#       json.dump(server_todo_hashes, working_file, indent=4)
+#  intentionally chosen so that the hashes dictionary stays human-readable.
+#  with open(local_files_path + 'server_todo_hashes.json', 'w') as working_file:
+#      json.dump(server_todo_hashes, working_file, indent=4)
 
 # TODO: Write an ICS files UID/SHA256hash generator function and call it twice instead of writing the code below twice!
 
 # Another dictionary is created from the local ICS file with their UID and the SHA256 digest of their content as
-#   local_todo_hashes.
+#  local_todo_hashes.
 local_todo_hashes = {}
 for file in os.listdir(local_files_path):
     if file.endswith('.ics'):
@@ -81,20 +85,20 @@ for file in os.listdir(local_files_path):
                 hashlib.sha256(str(local_todo).encode('utf-8')).hexdigest()
 
 # "local_todo_hashes" is written to a file in the "local_files_path" with local_todo_hashes.json filename. JSON is
-#   intentionally chosen so that the hashes dictionary stays human-readable.
-#   with open(local_files_path + 'local_todo_hashes.json', 'w') as working_file:
-#       json.dump(local_todo_hashes, working_file, indent=4)
+#  intentionally chosen so that the hashes dictionary stays human-readable.
+#  with open(local_files_path + 'local_todo_hashes.json', 'w') as working_file:
+#      json.dump(local_todo_hashes, working_file, indent=4)
 
 # Previously saved UID/hashes from the last synchronization are read back in from the JSON file. This file will be
-#   updated after synchronization.
+#  updated after synchronization.
 with open(local_files_path + 'synced_todo_hashes.json', 'r') as working_file:
     synced_todo_hashes = json.load(working_file)
 
 # We now have three dictionaries containing UID/hash pairs. By comparing these, we should be able to understand what
-#   needs to be synced and in which way.
+#  needs to be synced and in which way.
 
 # "no_dup_uids" is a list of all keys from the three dictionaries with duplicates removed. We will use this to iterate
-#   on all dictionaries and check for existence of keys...
+#  on all dictionaries and check for existence of keys...
 uids = list(server_todo_hashes.keys()) + list(local_todo_hashes.keys()) + list(synced_todo_hashes.keys())
 no_dup_uids = list(set(uids))
 
@@ -103,17 +107,17 @@ no_dup_uids = list(set(uids))
 # Now we compare the dictionaries to determine the required sync operations for each UID item...
 for uid_item in no_dup_uids:
 # Condition below means the item exists in all dictionaries. We now have to check the hash and see if it is changed on
-#   any side...
+#  any side...
     if uid_item in server_todo_hashes and uid_item in local_todo_hashes and uid_item in synced_todo_hashes:
         pass
 
 # The item below is only stored on the sever. It must have been created on the server in the interval between current
-#   synchronization and the previous one. Such items must be created in the local copies.
+#  synchronization and the previous one. Such items must be created in the local copies.
     elif uid_item in server_todo_hashes and uid_item not in local_todo_hashes and uid_item not in synced_todo_hashes:
         pass
 
 # The item below only exists locally. It must have been created locally between this synchronization and the previous
-#   one. Such items must be created on the server.
+#  one. Such items must be created on the server.
     elif uid_item not in server_todo_hashes and uid_item in local_todo_hashes and uid_item not in synced_todo_hashes:
         vprint("Item with UID", uid_item, "has been created after the previous synchronization and is not present on "
                "The remote server. Local ICS file will be used as source to create the assignment on server.")
@@ -131,18 +135,18 @@ for uid_item in no_dup_uids:
                         vprint("Done.")
 
 # The item below only exists in the synced list. This means that it was present everywhere during the last
-#   synchronization but was deleted from both sides in the interval (which is a bit strange but can happen).
-#   Such an item does not require any action. It will be deleted from the synced items dictionary at the end of
-#   current synchronization automatically. We also need to issue a warning.
+#  synchronization but was deleted from both sides in the interval (which is a bit strange but can happen).
+#  Such an item does not require any action. It will be deleted from the synced items dictionary at the end of
+#  current synchronization automatically. We also need to issue a warning.
     elif uid_item not in server_todo_hashes and uid_item not in local_todo_hashes and uid_item in synced_todo_hashes:
         vprint("Item with UID", uid_item, "which was present after previous sync is now deleted both remotely and "
                                           "locally between this and previous sync!")
         vprint("No further action required.")
 
 # Below item exists on server and locally, but it was not present in previous synchronization. This means that the
-#   is miraculously created on both sides with the same UID between this sync and the last one.
-#   We have to check the hashed on both sides and if not equal, the one with newer modification date must be
-#   copied to the other side. We also need to issue a warning for this.
+#  is miraculously created on both sides with the same UID between this sync and the last one.
+#  We have to check the hashed on both sides and if not equal, the one with newer modification date must be
+#  copied to the other side. We also need to issue a warning for this.
     elif uid_item in server_todo_hashes and uid_item in local_todo_hashes and uid_item not in synced_todo_hashes:
         vprint("Item with UID", uid_item, "is created both remotely and locally between this and previous sync!")
         vprint("This usually indicates a problem as UID collisions between separate items are very rare!")
@@ -201,7 +205,7 @@ for uid_item in no_dup_uids:
 
 
 # Item below is on the server and was present after the previous synchronization, but does not exist locally. Such an
-#   item must have been deleted locally between the two synchronizations and must be deleted from the server too.
+#  item must have been deleted locally between the two synchronizations and must be deleted from the server too.
     elif uid_item in server_todo_hashes and uid_item not in local_todo_hashes and uid_item in synced_todo_hashes:
         vprint("Item with UID", uid_item, "was deleted locally in the interval between this and the "
                                           "previous synchronization. This item will be deleted from the server...")
@@ -214,7 +218,7 @@ for uid_item in no_dup_uids:
                 vprint("Done.")
 
 # Item below exists locally and was present after the previous synchronization, but is not on the server. Such an
-#   item must have been deleted from the server between the two synchronizations and must be deleted locally too.
+#  item must have been deleted from the server between the two synchronizations and must be deleted locally too.
     elif uid_item not in server_todo_hashes and uid_item in local_todo_hashes and uid_item in synced_todo_hashes:
         vprint("Item with UID", uid_item, "was deleted from the remote server in the interval between this and the "
                                           "previous synchronization. This item will be deleted from local files...")
@@ -230,14 +234,14 @@ for uid_item in no_dup_uids:
                         vprint("Done.")
 
 # Situation below means that something has gone wrong as it is impossible to happen! This "else" statement should
-#   not really exist! But let's include it for now and raise some kind of error if this happens...
+#  not really exist! But let's include it for now and raise some kind of error if this happens...
     else:
         vprint("There seems to be a problem with the PRIORG data.",
                "This can be an unknown problem with the server or the local filesystem, or the data is corrupted.",
                "You may need to investigate this error manually before changing/synchronizing anything.")
 
 # Another dictionary is created from the local "synced" ICS file with their UID and the SHA256 digest of their content
-#   as local_todo_hashes.
+#  as local_todo_hashes.
 vprint("Synchronization is complete. Creating a list of syncronized items and their hash digests...")
 synced_todo_hashes = {}
 for file in os.listdir(local_files_path):
@@ -249,7 +253,7 @@ for file in os.listdir(local_files_path):
                 hashlib.sha256(str(synced_todo).encode('utf-8')).hexdigest()
 vprint("Done.")
 # "synced_todo_hashes" is written to a file in the "local_files_path" with synced_todo_hashes.json filename. JSON is
-#   intentionally chosen so that the hashes dictionary stays human-readable.
+#  intentionally chosen so that the hashes dictionary stays human-readable.
 vprint("Writing the list to 'synced_todo_hashes.json' file...")
 with open(local_files_path + 'synced_todo_hashes.json', 'w') as working_file:
     json.dump(synced_todo_hashes, working_file, indent=4)
