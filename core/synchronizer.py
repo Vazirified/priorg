@@ -5,6 +5,7 @@ import os
 import json
 import hashlib
 import keyring
+import uuid
 from datetime import datetime
 # TODO: Write a setup utility to create/edit configuration.py file.
 from configuration import *
@@ -114,7 +115,20 @@ for uid_item in no_dup_uids:
 # The item below is only stored on the sever. It must have been created on the server in the interval between current
 #  synchronization and the previous one. Such items must be created in the local copies.
     elif uid_item in server_todo_hashes and uid_item not in local_todo_hashes and uid_item not in synced_todo_hashes:
-        pass
+        vprint("Item with UID", uid_item, "has been created on the server after the previous synchronization and is not "
+                                          "present in the synchronized items list or locall items. Server item will be "
+                                          "used as source to create the item locally...", end=" ")
+        for todo in server_todos:
+            todo_uid = str(todo.instance.vtodo.uid)
+            todo_uid_parsed = todo_uid[todo_uid.find("}") + 1: todo_uid.find(">")]
+            if todo_uid_parsed == uid_item:
+                working_server_todo_caldav = todo
+                working_server_todo = todo.instance
+        working_local_todo = working_server_todo.serialize()
+        working_filename = str(uuid.uuid4()).upper()
+        with open(local_files_path + working_filename + ".ics", "w") as working_file:
+            working_file.writelines(str(working_local_todo))
+        vprint("Done.")
 
 # The item below only exists locally. It must have been created locally between this synchronization and the previous
 #  one. Such items must be created on the server.
@@ -129,7 +143,8 @@ for uid_item in no_dup_uids:
                     todo_uid_parsed = todo_uid[todo_uid.find("}") + 1: todo_uid.find(">")]
                     if todo_uid_parsed == uid_item:
                         vprint(file,
-                               "Will be written to the server in the user selected or default calendar as a VTODO...")
+                               "Will be written to the server in the user selected or default calendar as a VTODO...",
+                               end=" ")
                         working_local_todo = todo
                         server_calendars[calendar_selection()].save_todo(ical_fragment=working_local_todo.serialize())
                         vprint("Done.")
@@ -185,30 +200,33 @@ for uid_item in no_dup_uids:
             working_server_todo_modification_datetime = datetime.strptime(working_server_todo_modification_parsed,
                                                                          "%Y-%m-%d %H:%M:%S")
             if working_server_todo_modification_datetime > working_local_todo_modification_datetime:
-                vprint("Server copy was modified later. Taking server copy as source and updating local copy...")
+                vprint("Server copy was modified later. Taking server copy as source and updating local copy...",
+                       end=" ")
                 working_local_todo = working_server_todo
                 with open(local_files_path + working_file, 'w') as updating_local_file:
                     updating_local_file.write(working_local_todo.serialize())
-                vprint("Local file was overwritten with remote data.")
+                vprint("Done.")
             elif working_server_todo_modification_datetime < working_local_todo_modification_datetime:
-                vprint("Local copy was modified later. Taking local copy as source and updating the server copy...")
+                vprint("Local copy was modified later. Taking local copy as source and updating the server copy...",
+                       end=" ")
                 working_server_todo_caldav.vobject_instance = working_local_todo
                 working_server_todo_caldav.save()
-                vprint("Server copy was overwritten with local data.")
+                vprint("Done.")
             else:
                 vprint("Both modification date/times are the same. Taking server copy as source and updating local "
-                       "copy...")
+                       "copy...", end=" ")
                 working_local_todo = working_server_todo
                 with open(local_files_path + working_file, 'w') as updating_local_file:
                     updating_local_file.write(working_local_todo.serialize())
-                vprint("Local file was overwritten with remote data.")
+                vprint("Done.")
 
 
 # Item below is on the server and was present after the previous synchronization, but does not exist locally. Such an
 #  item must have been deleted locally between the two synchronizations and must be deleted from the server too.
     elif uid_item in server_todo_hashes and uid_item not in local_todo_hashes and uid_item in synced_todo_hashes:
         vprint("Item with UID", uid_item, "was deleted locally in the interval between this and the "
-                                          "previous synchronization. This item will be deleted from the server...")
+                                          "previous synchronization. This item will be deleted from the server...",
+                                          end=" ")
         for todo in server_todos:
             working_server_todo_uid = str(todo.instance.vtodo.uid)
             working_server_todo_uid_parsed = working_server_todo_uid[working_server_todo_uid.find("}") + 1:
@@ -221,7 +239,8 @@ for uid_item in no_dup_uids:
 #  item must have been deleted from the server between the two synchronizations and must be deleted locally too.
     elif uid_item not in server_todo_hashes and uid_item in local_todo_hashes and uid_item in synced_todo_hashes:
         vprint("Item with UID", uid_item, "was deleted from the remote server in the interval between this and the "
-                                          "previous synchronization. This item will be deleted from local files...")
+                                          "previous synchronization. This item will be deleted from local files...",
+                                          end=" ")
         for file in os.listdir(local_files_path):
             if file.endswith('.ics'):
                 with open(local_files_path + file, 'r') as todo_file:
@@ -242,7 +261,8 @@ for uid_item in no_dup_uids:
 
 # Another dictionary is created from the local "synced" ICS file with their UID and the SHA256 digest of their content
 #  as local_todo_hashes.
-vprint("Synchronization is complete. Creating a list of syncronized items and their hash digests...")
+vprint("Synchronization is complete. Creating a dictionary of currently syncronized items and their hash digests...",
+       end=" ")
 synced_todo_hashes = {}
 for file in os.listdir(local_files_path):
     if file.endswith('.ics'):
@@ -254,7 +274,7 @@ for file in os.listdir(local_files_path):
 vprint("Done.")
 # "synced_todo_hashes" is written to a file in the "local_files_path" with synced_todo_hashes.json filename. JSON is
 #  intentionally chosen so that the hashes dictionary stays human-readable.
-vprint("Writing the list to 'synced_todo_hashes.json' file...")
+vprint("Writing the in-sync items UID and hash digests dictionary to 'synced_todo_hashes.json' file...", end=" ")
 with open(local_files_path + 'synced_todo_hashes.json', 'w') as working_file:
     json.dump(synced_todo_hashes, working_file, indent=4)
 vprint("Done.")
