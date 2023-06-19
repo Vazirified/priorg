@@ -25,6 +25,9 @@ def vprint(*args, **kwargs):
 if verbose_mode:
     vprint = print
 
+# TODO: Change all messages, verbose mode or not, that are printed to terminal to make them more readable: maybe a
+#  constant and visible prompt sign at the start of messages can be helpful.
+
 # In the operations that write something to the server, we need to know which calendar to write to...
 #  The calendar_selection function, when called, will ask the user to choose a calendar and return the index number
 #  of that calendar for the operation to continue.
