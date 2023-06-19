@@ -23,8 +23,8 @@ def directory_check(path_to_check):
 def file_check(path_to_check, file_to_check, contents):
     if not os.path.exists(path_to_check + file_to_check):
         vprint(file_to_check, "does not exist in filesystem. Attempting to create it...")
-        with open(path_to_check + file_to_check, "w") as hashfile:
-            hashfile.write(contents)
+        with open(path_to_check + file_to_check, "w") as working_file:
+            working_file.write(contents)
         vprint("Done.")
     else:
         vprint(file_to_check, "already exists.")
