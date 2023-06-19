@@ -114,7 +114,63 @@ for uid_item in no_dup_uids:
     # The condition below means the item exists in all dictionaries.
     # We now have to check the hash and see if it is changed on any side...
     if uid_item in server_todo_hashes and uid_item in local_todo_hashes and uid_item in synced_todo_hashes:
-        pass
+        vprint("Item with UID", uid_item, "exists on both sides, we just need to check if the content are the same "
+                                          "or there have been any changes.")
+        if server_todo_hashes[uid_item] == synced_todo_hashes[uid_item] and \
+                local_todo_hashes[uid_item] == synced_todo_hashes[uid_item]:
+            vprint("The item is the same on both sides. No further action needed.")
+        else:
+            vprint("The item is changed at least on one side. The last modification dates will be checked and the "
+                   "newer copy will be used as source for synchronization.", end=" ")
+            for file in os.listdir(local_files_path):
+                if file.endswith('.ics'):
+                    with open(local_files_path + file, 'r') as todo_file:
+                        todo = vobject.base.readOne(todo_file)
+                        todo_uid = str(todo.vtodo.uid)
+                        todo_uid_parsed = todo_uid[todo_uid.find("}") + 1: todo_uid.find(">")]
+                        if todo_uid_parsed == uid_item:
+                            working_file = file
+                            working_local_todo = todo
+                            working_local_todo_uid_parsed = todo_uid_parsed
+                            working_local_todo_modification = str(working_local_todo.vtodo.last_modified)
+                            working_local_todo_modification_parsed = working_local_todo_modification[
+                                                                     working_local_todo_modification.find("}") + 1:
+                                                                     working_local_todo_modification.find(">")]
+            for todo in server_todos:
+                todo_uid = str(todo.instance.vtodo.uid)
+                todo_uid_parsed = todo_uid[todo_uid.find("}") + 1: todo_uid.find(">")]
+                if todo_uid_parsed == uid_item:
+                    working_server_todo_caldav = todo
+                    working_server_todo = todo.instance
+                    working_server_todo_uid_parsed = todo_uid_parsed
+                    working_server_todo_modification = str(working_server_todo.vtodo.last_modified)
+                    working_server_todo_modification_parsed = working_server_todo_modification[
+                                                              working_server_todo_modification.find("}") + 1:
+                                                              working_server_todo_modification.find(">")]
+            working_local_todo_modification_datetime = datetime.strptime(working_local_todo_modification_parsed,
+                                                                         "%Y-%m-%d %H:%M:%S")
+            working_server_todo_modification_datetime = datetime.strptime(working_server_todo_modification_parsed,
+                                                                          "%Y-%m-%d %H:%M:%S")
+            if working_server_todo_modification_datetime > working_local_todo_modification_datetime:
+                vprint("Server copy was modified later. Taking server copy as source and updating local copy...",
+                       end=" ")
+                working_local_todo = working_server_todo
+                with open(local_files_path + working_file, 'w') as updating_local_file:
+                    updating_local_file.write(working_local_todo.serialize())
+                vprint("Done.")
+            elif working_server_todo_modification_datetime < working_local_todo_modification_datetime:
+                vprint("Local copy was modified later. Taking local copy as source and updating the server copy...",
+                       end=" ")
+                working_server_todo_caldav.vobject_instance = working_local_todo
+                working_server_todo_caldav.save()
+                vprint("Done.")
+            else:
+                vprint("Both modification date/times are the same. Taking server copy as source and updating local "
+                       "copy...", end=" ")
+                working_local_todo = working_server_todo
+                with open(local_files_path + working_file, 'w') as updating_local_file:
+                    updating_local_file.write(working_local_todo.serialize())
+                vprint("Done.")
 
     # The item below is only stored on the sever.
     # It must have been created on the server in the interval between current synchronization and the previous one.
