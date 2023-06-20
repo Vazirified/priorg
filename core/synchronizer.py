@@ -349,4 +349,8 @@ with open(local_files_path + 'synced_todo_hashes.json', 'w') as working_file:
 vprint("Done.")
 
 # Connection/session with server is closed.
+vprint("Closing connection to server...", end=" ")
 server_session.close()
+vprint("Done")
+
+vprint("Synchronization finished.")
