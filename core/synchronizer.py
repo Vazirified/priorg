@@ -1,4 +1,3 @@
-# TODO: Imports should be optimized after we determine what components we are using from the libraries.
 import vobject
 import caldav
 import os
@@ -9,18 +8,20 @@ import uuid
 from datetime import datetime
 # TODO: Write a setup utility to create/edit configuration.py file.
 from configuration import *
-from rich.progress import track
 from rich.console import Console
+
 console = Console()
+
 
 # TODO: Wrap applicable parts in callable function definitions so that we can call them from the main procedures in
 #  the future. The functions that are used everywhere should naturally be taken out of this file, saved to a mutual
-#  modules file and imported in everywhere...
+#  modules file and imported in every use case...
 
 
 # This 'if' statement will check if verbose_mode flag from configuration is set to true, in which case defined vprint
 #  function as such that it works as print function (so that all the verbose messages which are passed to vprint are
 #  actually printed), else, vprint function does nothing (as per definition) and the messages are not displayed.
+# noinspection PyUnusedLocal
 def vprint(*args, **kwargs):
     return None
 
@@ -49,14 +50,19 @@ def calendar_selection():
         vprint("A default calendar was found in configuration. Default calendar will be used to write to the server.")
         return default_calendar
 
+
 with console.status("[bright_blue]Synchronizing...", spinner_style='bright_blue'):
     vprint("[bright_blue]Synchronization module started.")
 
-    # Credentials are retrieved from OS keychain and used to establish a connection/session with the remote CalDAV server.
-    #  Then a client object is formed by assigning all principle properties of the session to server_object and a list of
-    #  calendars on the server is built as server_calendars.
-    # TODO: Write a setup utility to manage username and password of the CalDAV server in they OS keychain through keyring.
-    #  The remote username/password are saved to ("priorg-caldav", "username", "password") and the username can be accessed
+    # Credentials are retrieved from OS keychain and used to establish a connection/session with the remote CalDAV
+    # server.
+    # Then a client object is formed by assigning all principle properties of the session to server_object and
+    # a list of calendars on the server is built as server_calendars.
+    # TODO:
+    #  Write a setup utility for managing username and password of the CalDAV server in they OS keychain through
+    #  keyring.
+    #  The remote username/password are saved to
+    #  ("priorg-caldav", "username", "password") and the username can be accessed
     #  from ("priorg-caldav", "priorg", "username").
     vprint("Establishing a connection to the remote server...")
     server_session = caldav.DAVClient(url=server_url,
@@ -85,7 +91,8 @@ with console.status("[bright_blue]Synchronizing...", spinner_style='bright_blue'
             hashlib.sha256(str(server_todo.instance).encode('utf-8')).hexdigest()
     vprint("[bright_green]Server VTODO items UID/hash digest dictionary was successfully created.")
 
-    # TODO: Write an ICS files UID/SHA256hash generator function and call it twice instead of writing the code below twice!
+    # TODO: Write an ICS files UID/SHA256hash generator function and call it twice instead of writing the code below
+    #  twice!
 
     # Another dictionary is created from the local ICS file with their UID and the SHA256 digest of their content as
     #  local_todo_hashes.
@@ -181,10 +188,11 @@ with console.status("[bright_blue]Synchronizing...", spinner_style='bright_blue'
         # The item below is only stored on the sever.
         # It must have been created on the server in the interval between current synchronization and the previous one.
         #   Such items must be created in the local copies.
-        elif uid_item in server_todo_hashes and uid_item not in local_todo_hashes and uid_item not in synced_todo_hashes:
+        elif uid_item in server_todo_hashes and uid_item not in local_todo_hashes and uid_item not in \
+                synced_todo_hashes:
             vprint("Item with UID", uid_item, "has been created on the server after the previous sync and is not "
-                                              "present in the synchronized items list or local items. Server item will be "
-                                              "used as source to create the item locally...")
+                                              "present in the synchronized items list or local items. Server item will "
+                                              "be used as source to create the item locally...")
             for todo in server_todos:
                 todo_uid = str(todo.instance.vtodo.uid)
                 todo_uid_parsed = todo_uid[todo_uid.find("}") + 1: todo_uid.find(">")]
@@ -200,7 +208,8 @@ with console.status("[bright_blue]Synchronizing...", spinner_style='bright_blue'
         # The item below only exists locally.
         # It must have been created locally between this synchronization and the previous one.
         # Such items must be created on the server.
-        elif uid_item not in server_todo_hashes and uid_item in local_todo_hashes and uid_item not in synced_todo_hashes:
+        elif uid_item not in server_todo_hashes and uid_item in local_todo_hashes and uid_item not in \
+                synced_todo_hashes:
             vprint("Item with UID", uid_item,
                    "has been created after the previous synchronization and is not present on "
                    "The remote server. Local ICS file will be used as source to create the "
@@ -213,18 +222,20 @@ with console.status("[bright_blue]Synchronizing...", spinner_style='bright_blue'
                         todo_uid_parsed = todo_uid[todo_uid.find("}") + 1: todo_uid.find(">")]
                         if todo_uid_parsed == uid_item:
                             vprint(file,
-                                   "Will be written to the server in the user selected or default calendar as a VTODO...")
+                                   "Will be written to the server in the user selected or default calendar as a "
+                                   "VTODO...")
                             working_local_todo = todo
                             server_calendars[calendar_selection()].save_todo(
                                 ical_fragment=working_local_todo.serialize())
                             vprint("[bright_green]Server copy was successfully created using the local copy.")
 
         # The item below only exists in the synced list.
-        # This means that it was present everywhere during the last synchronization but was deleted from both sides in the
-        #   interval (which is a bit strange but can happen).
-        # Such an item does not require any action, and it will be deleted from the synced items dictionary at the end of
-        #   current synchronization automatically, but we also need to issue a warning.
-        elif uid_item not in server_todo_hashes and uid_item not in local_todo_hashes and uid_item in synced_todo_hashes:
+        # This means that it was present everywhere during the last synchronization but was deleted from both sides in
+        #  the interval (which is a bit strange but can happen).
+        # Such an item does not require any action, and it will be deleted from the synced items dictionary at the end
+        #  of current synchronization automatically, but we also need to issue a warning.
+        elif uid_item not in server_todo_hashes and uid_item not in local_todo_hashes and uid_item in \
+                synced_todo_hashes:
             vprint("[bright_yellow]Item with UID", uid_item,
                    "[bright_yellow]which was present after previous sync is now "
                    "deleted both remotely and locally between this and previous "
@@ -232,8 +243,8 @@ with console.status("[bright_blue]Synchronizing...", spinner_style='bright_blue'
             vprint("No further action required.")
 
         # Below item exists on server and locally, but it was not present in previous synchronization.
-        #  This means that it is miraculously created on both sides with the same UID between this sync and the last one.
-        #  We have to check the hashed on both sides, and if not equal, the one with newer modification date must be
+        # This means that it is miraculously created on both sides with the same UID between this sync and the last one.
+        # We have to check the hashed on both sides, and if not equal, the one with newer modification date must be
         #  copied to the other side, but we also need to issue a warning for this.
         elif uid_item in server_todo_hashes and uid_item in local_todo_hashes and uid_item not in synced_todo_hashes:
             vprint("[bright_yellow]Item with UID", uid_item,
@@ -294,9 +305,10 @@ with console.status("[bright_blue]Synchronizing...", spinner_style='bright_blue'
                         updating_local_file.write(working_local_todo.serialize())
                     vprint("[bright_green]Local copy was successfully updated using the server copy contents.")
 
-        # The item below is on the server and was present after the previous synchronization, but does not exist locally.
-        #  Such an item must have been deleted locally between the two synchronizations and must be deleted from the server
-        #  too.
+        # The item below is on the server and was present after the previous synchronization, but does not exist
+        #  locally.
+        # Such an item must have been deleted locally between the two synchronizations and must be deleted
+        #  from the server too.
         elif uid_item in server_todo_hashes and uid_item not in local_todo_hashes and uid_item in synced_todo_hashes:
             vprint("Item with UID", uid_item, "was deleted locally in the interval between this and the "
                                               "previous synchronization. This item will be deleted from the server...")
@@ -309,8 +321,8 @@ with console.status("[bright_blue]Synchronizing...", spinner_style='bright_blue'
                     vprint("[bright_green]Server copy was successfully deleted.")
 
         # The item below exists locally and was present after the previous synchronization, but is not on the server.
-        # Such an item must have been deleted from the server between the two synchronizations and must be deleted locally
-        #  too.
+        # Such an item must have been deleted from the server between the two synchronizations and must be deleted
+        #  locally too.
         elif uid_item not in server_todo_hashes and uid_item in local_todo_hashes and uid_item in synced_todo_hashes:
             vprint("Item with UID", uid_item, "was deleted from the remote server in the interval between this and the "
                                               "previous synchronization. This item will be deleted from local files...")
@@ -326,14 +338,15 @@ with console.status("[bright_blue]Synchronizing...", spinner_style='bright_blue'
                             vprint("[bright_green]Local copy was successfully deleted.")
 
         # The situation below means that something has gone wrong as it is impossible to happen!
-        # This "else" statement should not really exist, but let's include it for now and raise some kind of error if this
-        #  happens...
+        # This "else" statement should not really exist, but let's include it for now and raise some kind of error if
+        #  this happens...
         else:
             vprint("[bright_red]There seems to be a problem with the PRIORG data.\n"
                    "This can be an unknown problem with the server or the local filesystem, or the data is corrupted. "
                    "You may need to investigate this error manually before changing/synchronizing anything.")
 
-    # Another dictionary is created from the local "synced" ICS file with their UID and the SHA256 digest of their content
+    # Another dictionary is created from the local "synced" ICS file with their UID and the SHA256 digest of their
+    #  content
     #  as local_todo_hashes.
     vprint("[bright_green]Synchronization completed successfully.")
     vprint("Creating a dictionary of currently synchronized items and their hash digests...")
@@ -359,4 +372,3 @@ with console.status("[bright_blue]Synchronizing...", spinner_style='bright_blue'
     vprint("[bright_green]Connection to remote server was successfully closed.")
 
     vprint("[bright_blue]Synchronization module finished.")
-
