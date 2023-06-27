@@ -17,11 +17,16 @@ console = Console()
 #  the future. The functions that are used everywhere should naturally be taken out of this file, saved to a mutual
 #  modules file and imported in every use case...
 
+# TODO:
+#  Write a setup utility for managing username and password of the CalDAV server in they OS keychain through
+#  keyring.
+#  The remote username/password are saved to
+#  ("priorg-caldav", "username", "password") and the username can be accessed
+#  from ("priorg-caldav", "priorg", "username").
 
 # This 'if' statement will check if verbose_mode flag from configuration is set to true, in which case defined vprint
 #  function as such that it works as print function (so that all the verbose messages which are passed to vprint are
 #  actually printed), else, vprint function does nothing (as per definition) and the messages are not displayed.
-# noinspection PyUnusedLocal
 def vprint(*args, **kwargs):
     return None
 
@@ -30,14 +35,28 @@ if verbose_mode:
     vprint = console.log
 
 
-# In the operations that write something to the server, we need to know which calendar to write to...
-#  The calendar_selection function, when called, will ask the user to choose a calendar and return the index number
-#  of that calendar for the operation to continue.
-def calendar_selection():
+def calendar_selection(calendars_list) -> int:
+    """Calendar Selector
+
+    In the operations that write to the server, we need to know which calendar
+    to write to...
+    The calendar_selection function, when called with the list of calendars
+    discovered on the server, will ask the user to choose a calendar and return
+    the index number of that calendar for other operations to refer to and
+    continue.
+
+    Parameter:
+    - calendars_list: A list of calendars as created with Python CalDAV library
+        in a "Calendar(url)" format.
+
+    Returns:
+        The index number of the user's choice from calendars list as an
+        integer.
+    """
     if default_calendar == -1:
         vprint("A default calendar was not found. User input is required to continue...")
         index_counter = 0
-        for discovered_calendar in server_calendars:
+        for discovered_calendar in calendars_list:
             print(index_counter, ":", discovered_calendar)
             index_counter += 1
         default_calendar_index = int(console.input("Please enter the index number of your calendar of choice for "
@@ -51,67 +70,198 @@ def calendar_selection():
         return default_calendar
 
 
+def server_connect(url = server_url, usrname = keyring.get_password("priorg-caldav", "priorg"),
+                   password=keyring.get_password("priorg-caldav", keyring.get_password("priorg-caldav", "priorg"))
+                   ) -> object:
+    """Server Connection Starter
+
+    This function connects to a remote CalDAV server and returns a Python CalDAV
+    library class instance from the connection to be accessed by other modules.
+
+    Mandatory arguments are:
+        - url: URL of the CalDAV server. If not provided, defaults to the value
+            stored in configuration.py file.
+        - usr: Username to access the CalDAV server. If not provided, defaults to
+            the value stored in the local keychain.
+        - pas: Password to access the CalDAV server. If not provided, defaults to
+            the value stored in the local keychain.
+
+    Returns:
+        Server class object of the remote server.
+    """
+    # Credentials, if not provided as arguments, are retrieved from OS keychain and used to establish a
+    #  connection/session with the remote CalDAV server.
+    vprint("Establishing a connection to the remote server...")
+    server_session = caldav.DAVClient(url=url, username=usrname, password=password)
+    vprint("[bright_green]Connection to remote server established.")
+    return server_session
+
+
+def server_disconnect(server) -> None:
+    """Server Connection Disconnector
+
+    This function closes the connection to the CalDAV server passed to is as a
+    Python CalDAV library server class instance.
+
+    Parameters:
+        - server: A Python CalDAV server class object
+
+    Returns:
+        None
+    """
+    # Connection/session with server is closed.
+    vprint("Closing connection to server...")
+    server.close()
+    vprint("[bright_green]Connection to remote server was successfully closed.")
+
+
+def calendar_discovery(server) -> list:
+    """CalDAV Server Calendar Discovery
+
+    This functions receives a server object in for of Python CalDAV server class
+    instance and returns a list of calendars discovered on the server.
+
+    Parameter:
+        - server: Is an object, as an instance of Python CalDAV server class.
+
+    Returns:
+        A list containing all discovered calendars on the CalDAV server.
+    """
+    vprint("Getting a list of server calendars...")
+    server_object = server.principal()
+    server_calendars = server_object.calendars()
+    vprint("[bright_green]List of calendars on the server was successfully obtained.")
+    return server_calendars
+
+
+def server_todos_lister(calendar_list) -> list:
+    """Server Todos list Creator
+
+    This functions receives a list of calendars and iterates them to extract all
+    VTODO items and returns them as a list of URLs pointing to ICS files.
+
+    Parameter:
+        - calendar_list: A list of calendars in "Calendar(url)" format such as
+        one generated by Python CalDAV library.
+
+    Returns:
+        A list in "T0D0(url)" format, containing URLs of the ICS files for the
+        VTODO items on the server.
+    """
+    vprint("Creating a list of all VTODO items on the server...")
+    server_todos = []
+    for calendar in calendar_list:
+        server_todos.extend(calendar.todos())
+    vprint("[bright_green]Server VTODO items list was successfully created.")
+    return server_todos
+
+
+def server_todo_hasher(server_todos_list) -> dict:
+    """Server VTODOs UID and Contents Hash Digest Dictionary Creator
+
+    Server_todos_hasher function receives a list of VTODOs on a CalDAV server in
+    T0D0(url) format, iterates them and reads their contents and outputs a
+    dictionary containing UID/contents-hash-digest value-pairs.
+
+    Parameter:
+        - server_todos_list: List of VTODOs on a CalDAV server in T0D0(url)
+        format
+
+    Returns:
+        Dictionary containing UID/contents-hash-digest value-pairs.
+    """
+    vprint("Creating a dictionary of all server VTODO UID and hash digests...")
+    server_todo_hashes = {}
+    for server_todo in server_todos_list:
+        working_todo = str(server_todo.instance.vtodo.uid)
+        server_todo_hashes[working_todo[working_todo.find("}") + 1: working_todo.find(">")]] = \
+            hashlib.sha256(str(server_todo.instance).encode('utf-8')).hexdigest()
+    vprint("[bright_green]Server VTODO items UID/hash digest dictionary was successfully created.")
+    return server_todo_hashes
+
+
+def ics_files_hasher(path) -> dict:
+    """Local ICS-files/VTODOs UID and Contents Hash Digest Dictionary Creator
+
+    Ics_files_hasher function receives a path to local files directory, iterates
+    the files in that directory and looks for ICS files, and creates a
+    dictionary of the VTODO UIDs and content hashes from each ICS file to
+    return.
+
+    Parameter:
+        - path: A string containing the path to local files directory.
+    Returns:
+        Dictionary containing UID/contents-hash-digest value-pairs.
+    """
+    vprint("Reading ICS files and creating a dictionary of UID/hash digests...")
+    ics_file_hashes = {}
+    for file in os.listdir(path):
+        if file.endswith('.ics'):
+            with open(path + file, 'r') as todo_file:
+                local_todo = vobject.base.readOne(todo_file)
+                working_todo = str(local_todo.vtodo.uid)
+                ics_file_hashes[working_todo[working_todo.find("}") + 1: working_todo.find(">")]] = \
+                    hashlib.sha256(str(local_todo).encode('utf-8')).hexdigest()
+    vprint("[bright_green]ICS files UID/hash digest dictionary was successfully created.")
+    return ics_file_hashes
+
+
+def json_file_reader(path, name) -> dict:
+    """JSON File Reader/Importer
+
+    Json_file_reader attempts to read a json file from the given path and file-
+    name and returns the data within it as a dictionary.
+
+    Parameters:
+        - path: Path to the directory containing the file.
+        - name: Filename of the JSON file (without the extension).
+
+    Returns:
+        Dictionary containing the data that was serialized in JSON format.
+    """
+    vprint("Reading previously saved JSON file...")
+    with open(path + name + '.json', 'r') as working_file:
+        working_dict = json.load(working_file)
+    vprint("[bright_green]Previously saved JSON file was successfully imported.")
+    return working_dict
+
+
+def json_file_writer(path, name, data) -> None:
+    """JSON File Writer/Exporter
+
+    Json_file_writer accepts a path, a filename and some structured data such as
+    a dictionary, serializes the data in JSON format and writes it to a JSON
+    file.
+
+    Parameters:
+        - path: Path to the directory where the JSON file should be saved.
+        - name: Filename without extension.
+        - data: Structured data, such as a dictionary.
+
+    Returns:
+        None. But a file should be created/overwritten after the execution in
+        the 'path' and with the 'name' filename and JSON extension.
+    """
+    vprint("Serializing and writing dictionary to JSON file...")
+    with open(path + name + '.json', 'w') as working_file:
+        json.dump(data, working_file, indent=4)
+    vprint("[bright_green]Dictionary was successfully saved to JSON file.")
+
+
+# =====================================================================================================================
+# ========= Main Procedures of The Synchronizer - Minimized for a Blackbox Approach ===================================
+# =====================================================================================================================
+
 vprint("[bright_blue]Synchronization module started.")
+server_session = server_connect()
+server_calendars = calendar_discovery(server_session)
+server_todos = server_todos_lister(server_calendars)
+server_todo_hashes = server_todo_hasher(server_todos)
+local_todo_hashes = ics_files_hasher(local_files_path)
+synced_todo_hashes = json_file_reader(local_files_path, 'synced_todo_hashes')
 
-# Credentials are retrieved from OS keychain and used to establish a connection/session with the remote CalDAV
-# server.
-# Then a client object is formed by assigning all principle properties of the session to server_object and
-# a list of calendars on the server is built as server_calendars.
-# TODO:
-#  Write a setup utility for managing username and password of the CalDAV server in they OS keychain through
-#  keyring.
-#  The remote username/password are saved to
-#  ("priorg-caldav", "username", "password") and the username can be accessed
-#  from ("priorg-caldav", "priorg", "username").
-vprint("Establishing a connection to the remote server...")
-server_session = caldav.DAVClient(url=server_url,
-                                  username=keyring.get_password("priorg-caldav", "priorg"),
-                                  password=keyring.get_password("priorg-caldav",
-                                                                keyring.get_password("priorg-caldav", "priorg")))
-server_object = server_session.principal()
-vprint("[bright_green]Connection to remote server established.")
-vprint("Getting a list of server calendars...")
-server_calendars = server_object.calendars()
-vprint("[bright_green]List of calendars on the server was successfully obtained.")
+# =====================================================================================================================
 
-# Calendars are iterated and all VTODO items are fetched. VTODOs are stored in the server_todos list.
-vprint("Creating a list of all VTODO items on the server...")
-server_todos = []
-for calendar in server_calendars:
-    server_todos.extend(calendar.todos())
-vprint("[bright_green]Server VTODO items list was successfully created.")
-
-# A dictionary is created from the server tasks UIDs and the SHA256 digest of their contents as server_todo_hashes.
-vprint("Creating a dictionary of all server VTODO UID and hash digests...")
-server_todo_hashes = {}
-for server_todo in server_todos:
-    working_todo = str(server_todo.instance.vtodo.uid)
-    server_todo_hashes[working_todo[working_todo.find("}") + 1: working_todo.find(">")]] = \
-        hashlib.sha256(str(server_todo.instance).encode('utf-8')).hexdigest()
-vprint("[bright_green]Server VTODO items UID/hash digest dictionary was successfully created.")
-
-# TODO: Write an ICS files UID/SHA256hash generator function and call it twice instead of writing the code below
-#  twice!
-
-# Another dictionary is created from the local ICS file with their UID and the SHA256 digest of their content as
-#  local_todo_hashes.
-vprint("Reading local ICS files and creating a dictionary of UID/hash digests...")
-local_todo_hashes = {}
-for file in os.listdir(local_files_path):
-    if file.endswith('.ics'):
-        with open(local_files_path + file, 'r') as todo_file:
-            local_todo = vobject.base.readOne(todo_file)
-            working_todo = str(local_todo.vtodo.uid)
-            local_todo_hashes[working_todo[working_todo.find("}") + 1: working_todo.find(">")]] = \
-                hashlib.sha256(str(local_todo).encode('utf-8')).hexdigest()
-vprint("[bright_green]Local ICS files UID/hash digest dictionary was successfully created.")
-
-# Previously saved UID/hashes from the last synchronization are read back in from the JSON file. This file will be
-#  updated after synchronization.
-vprint("Reading UID/hash digest dictionary from the previous synchronization...")
-with open(local_files_path + 'synced_todo_hashes.json', 'r') as working_file:
-    synced_todo_hashes = json.load(working_file)
-vprint("[bright_green]Previously synced items UID/hash digest dictionary was successfully imported.")
 
 # We now have three dictionaries containing UID/hash pairs. By comparing these, we should be able to understand what
 #  needs to be synced and in which way.
@@ -224,7 +374,7 @@ for uid_item in no_dup_uids:
                                "Will be written to the server in the user selected or default calendar as a "
                                "VTODO...")
                         working_local_todo = todo
-                        server_calendars[calendar_selection()].save_todo(
+                        server_calendars[calendar_selection(server_calendars)].save_todo(
                             ical_fragment=working_local_todo.serialize())
                         vprint("[bright_green]Server copy was successfully created using the local copy.")
 
@@ -348,26 +498,10 @@ for uid_item in no_dup_uids:
 #  content
 #  as local_todo_hashes.
 vprint("[bright_green]Synchronization completed successfully.")
-vprint("Creating a dictionary of currently synchronized items and their hash digests...")
-synced_todo_hashes = {}
-for file in os.listdir(local_files_path):
-    if file.endswith('.ics'):
-        with open(local_files_path + file, 'r') as todo_file:
-            synced_todo = vobject.base.readOne(todo_file)
-            working_todo = str(synced_todo.vtodo.uid)
-            synced_todo_hashes[working_todo[working_todo.find("}") + 1: working_todo.find(">")]] = \
-                hashlib.sha256(str(synced_todo).encode('utf-8')).hexdigest()
-vprint("[bright_green]Dictionary was successfully created.")
-# "synced_todo_hashes" is written to a file in the "local_files_path" with synced_todo_hashes.json filename. JSON is
-#  intentionally chosen so that the hashes dictionary stays human-readable.
-vprint("Writing the in-sync items UID and hash digests dictionary to 'synced_todo_hashes.json' file...")
-with open(local_files_path + 'synced_todo_hashes.json', 'w') as working_file:
-    json.dump(synced_todo_hashes, working_file, indent=4)
-vprint("[bright_green]Synced items dictionary was successfully saved to a file.")
 
-# Connection/session with server is closed.
-vprint("Closing connection to server...")
-server_session.close()
-vprint("[bright_green]Connection to remote server was successfully closed.")
+# =====================================================================================================================
 
-vprint("[bright_blue]Synchronization module finished.")
+synced_todo_hashes = ics_files_hasher(local_files_path)
+json_file_writer(local_files_path, 'synced_todo_hashes', synced_todo_hashes)
+server_disconnect(server_session)
+vprint("[bright_blue]Synchronization module operations finished.")
