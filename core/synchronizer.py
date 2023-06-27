@@ -35,7 +35,7 @@ if verbose_mode:
     vprint = console.log
 
 
-def calendar_selection(calendars_list) -> int:
+def calendar_selection(calendars_list: list) -> int:
     """Calendar Selector
 
     In the operations that write to the server, we need to know which calendar
@@ -70,9 +70,9 @@ def calendar_selection(calendars_list) -> int:
         return default_calendar
 
 
-def server_connect(url = server_url, usrname = keyring.get_password("priorg-caldav", "priorg"),
-                   password=keyring.get_password("priorg-caldav", keyring.get_password("priorg-caldav", "priorg"))
-                   ) -> object:
+def server_connect(url: str = server_url, usrname: str = keyring.get_password("priorg-caldav", "priorg"),
+                   password: str = keyring.get_password("priorg-caldav", keyring.get_password("priorg-caldav", "priorg")
+                                                        )) -> object:
     """Server Connection Starter
 
     This function connects to a remote CalDAV server and returns a Python CalDAV
@@ -97,7 +97,7 @@ def server_connect(url = server_url, usrname = keyring.get_password("priorg-cald
     return server_session
 
 
-def server_disconnect(server) -> None:
+def server_disconnect(server: object) -> None:
     """Server Connection Disconnector
 
     This function closes the connection to the CalDAV server passed to is as a
@@ -115,7 +115,7 @@ def server_disconnect(server) -> None:
     vprint("[bright_green]Connection to remote server was successfully closed.")
 
 
-def calendar_discovery(server) -> list:
+def calendar_discovery(server: object) -> list:
     """CalDAV Server Calendar Discovery
 
     This functions receives a server object in for of Python CalDAV server class
@@ -134,7 +134,7 @@ def calendar_discovery(server) -> list:
     return server_calendars
 
 
-def server_todos_lister(calendar_list) -> list:
+def server_todos_lister(calendar_list: list) -> list:
     """Server Todos list Creator
 
     This functions receives a list of calendars and iterates them to extract all
@@ -156,7 +156,7 @@ def server_todos_lister(calendar_list) -> list:
     return server_todos
 
 
-def server_todo_hasher(server_todos_list) -> dict:
+def server_todo_hasher(server_todos_list: list) -> dict:
     """Server VTODOs UID and Contents Hash Digest Dictionary Creator
 
     Server_todos_hasher function receives a list of VTODOs on a CalDAV server in
@@ -180,7 +180,7 @@ def server_todo_hasher(server_todos_list) -> dict:
     return server_todo_hashes
 
 
-def ics_files_hasher(path) -> dict:
+def ics_files_hasher(path: str) -> dict:
     """Local ICS-files/VTODOs UID and Contents Hash Digest Dictionary Creator
 
     Ics_files_hasher function receives a path to local files directory, iterates
@@ -206,7 +206,7 @@ def ics_files_hasher(path) -> dict:
     return ics_file_hashes
 
 
-def json_file_reader(path, name) -> dict:
+def json_file_reader(path: str, name: str) -> dict:
     """JSON File Reader/Importer
 
     Json_file_reader attempts to read a json file from the given path and file-
@@ -226,7 +226,7 @@ def json_file_reader(path, name) -> dict:
     return working_dict
 
 
-def json_file_writer(path, name, data) -> None:
+def json_file_writer(path: str, name: str, data) -> None:
     """JSON File Writer/Exporter
 
     Json_file_writer accepts a path, a filename and some structured data such as
@@ -248,11 +248,165 @@ def json_file_writer(path, name, data) -> None:
     vprint("[bright_green]Dictionary was successfully saved to JSON file.")
 
 
+def dictionary_keys_lister(*args: dict) -> list:
+    """Dictionary Keys Lister Without Duplicates
+
+    Dictionary_keys_lister takes in infinite number of dictionaries and returns
+    a list containing all of their keys without repeating the duplicates.
+
+    Parameters:
+        - infinite number of dictionaries
+    Returns:
+        List of input dictionaries keys, without duplicates.
+    """
+    keys = []
+    for input_dict in args:
+        keys += list(input_dict.keys())
+    no_dup_keys = list(set(keys))
+    return no_dup_keys
+
+
+def file_vtodo_finder(path: str, uid: str) -> list:
+    """ICS File VTODO Finder
+
+    File_vtodo_finder gets a path to a collection of ICS files and a UID, reads
+    and parses the ICS files and compares their UIDs against the UID provided to
+    it when called and as soon as finding a VTODO ICS file with the same UID,
+    returns a list containing the UID, the filename, VObject instance of the
+    VTODO and the datetime object instance of its last modification date/time.
+
+    Parameters:
+        - path: A string containing the path to the directory containing the ICS
+                files.
+        - uid : A string containing the uid of the VTODO the function will
+                search for.
+
+    Returns:
+        A list, defined and indexed as below:
+        0: UID string of the VTODO;
+        1: Filename string of the file containing the VTODO with the same UID;
+        2: VObject instance of the VTODO with the same UID;
+        3: Date/Time object of the last modification date/time of the VTODO;
+    """
+    for file in os.listdir(path):
+        if file.endswith('.ics'):
+            with open(path + file, 'r') as todo_file:
+                todo = vobject.base.readOne(todo_file)
+                todo_uid = str(todo.vtodo.uid)
+                todo_uid_parsed = todo_uid[todo_uid.find("}") + 1: todo_uid.find(">")]
+                if todo_uid_parsed == uid:
+                    working_file = file
+                    working_local_todo = todo
+                    working_local_todo_uid_parsed = todo_uid_parsed
+                    working_local_todo_modification = str(working_local_todo.vtodo.last_modified)
+                    working_local_todo_modification_parsed = working_local_todo_modification[
+                                                             working_local_todo_modification.find("}") + 1:
+                                                             working_local_todo_modification.find(">")]
+                    working_local_todo_modification_datetime = datetime.strptime(working_local_todo_modification_parsed,
+                                                                                 "%Y-%m-%d %H:%M:%S")
+    todo_attributes = [working_local_todo_uid_parsed,
+                       working_file,
+                       working_local_todo,
+                       working_local_todo_modification_datetime]
+    return todo_attributes
+
+
+def server_vtodo_finder(server_todos: list, uid: str) -> list:
+    """CalDAV Tasklist VTODO Finder
+
+    Server_vtodo_finder gets a tasklist of a collection of VTODOs on a CalDAV
+    server and a UID, reads and parses the VTODOs and compares their UIDs
+    against the UID provided to it when called and as soon as finding a VTODO
+    instance with the same UID, returns a list containing the UID, the CalDAV
+    object instance (e.g. the address on the server), VObject instance of the
+    VTODO and the datetime object instance of its last modification date/time.
+
+    Parameters:
+        - server_todos  : A list containing the VTODOs on a CalDAV servre in the
+                          format similar to what the Python CalDAV library
+                          generates.
+        - uid           : A string containing the uid of the VTODO the function will
+                          search for.
+
+    Returns:
+        A list, defined and indexed as below:
+        0: UID string of the VTODO;
+        1: CalDAV instance of the VTODO with the same UID;
+        2: VObject instance of the VTODO with the same UID;
+        3: Date/Time object of the last modification date/time of the VTODO;
+    """
+    for todo in server_todos:
+        todo_uid = str(todo.instance.vtodo.uid)
+        todo_uid_parsed = todo_uid[todo_uid.find("}") + 1: todo_uid.find(">")]
+        if todo_uid_parsed == uid:
+            working_server_todo_caldav = todo
+            working_server_todo = todo.instance
+            working_server_todo_uid_parsed = todo_uid_parsed
+            working_server_todo_modification = str(working_server_todo.vtodo.last_modified)
+            working_server_todo_modification_parsed = working_server_todo_modification[
+                                                      working_server_todo_modification.find("}") + 1:
+                                                      working_server_todo_modification.find(">")]
+            working_server_todo_modification_datetime = datetime.strptime(working_server_todo_modification_parsed,
+                                                                          "%Y-%m-%d %H:%M:%S")
+    todo_attributes = [working_server_todo_uid_parsed,
+                       working_server_todo_caldav,
+                       working_server_todo,
+                       working_server_todo_modification_datetime]
+    return todo_attributes
+
+
+def file_todo_writer(path: str, filename: str, data: object) -> None:
+    """ICS File VTODO Updater/Creator
+
+    File_todo_writer accepts a path and a filename as target and
+    overwrites/creates the target with the data provided as a VObject VTODO
+    instance.
+
+    Parameters:
+        - path      :   A string, containing the path to the file that should be created
+                        or overwritten.
+        - filename  : A string containing the name and extension of the target
+                        file.
+        - data      :   VObject instance, holding the VTODO data that should be
+                        written to the target file.
+
+    Returns:
+        None.
+    """
+    vprint("Attempting to create/update the file with provided data...")
+    with open(path + filename, 'w') as updating_local_file:
+        updating_local_file.write(data.serialize())
+    vprint("[bright_green]File was successfully overwritten with the source data.")
+
+
+def server_todo_updater(caldav_item: object, data: object) -> None:
+    """CalDAV Server VTODO Updater
+
+    Server_todo_updater accepts an existing CalDAV VTODO item in Python CalDAV
+    library VTODO object format, and overwrites it with the data provided as a
+    VObject VTODO instance.
+
+    Parameters:
+        - caldav_item   :   A CalDAV library VTODO object, pointing to an
+                            existing VTODO item on a CalDAV server.
+        - data          :   VObject instance, holding the VTODO data that should
+                            be written to the target VTODO on the server.
+
+    Returns:
+        None.
+    """
+    vprint("Attempting to update the existing server VTODO with provided data...")
+    caldav_item.vobject_instance = data
+    caldav_item.save()
+    vprint("[bright_green]Server copy was successfully overwritten with the local copy.")
+
+
 # =====================================================================================================================
 # ========= Main Procedures of The Synchronizer - Minimized for a Blackbox Approach ===================================
 # =====================================================================================================================
 
 vprint("[bright_blue]Synchronization module started.")
+
 server_session = server_connect()
 server_calendars = calendar_discovery(server_session)
 server_todos = server_todos_lister(server_calendars)
@@ -262,21 +416,14 @@ synced_todo_hashes = json_file_reader(local_files_path, 'synced_todo_hashes')
 
 # =====================================================================================================================
 
-
-# We now have three dictionaries containing UID/hash pairs. By comparing these, we should be able to understand what
-#  needs to be synced and in which way.
-
-# No_dup_uids is a list of all keys from the three dictionaries with duplicates removed.
-# We will use this to iterate on all dictionaries and check for the existence of keys...
-uids = list(server_todo_hashes.keys()) + list(local_todo_hashes.keys()) + list(synced_todo_hashes.keys())
-no_dup_uids = list(set(uids))
+no_dup_uids = dictionary_keys_lister(server_todo_hashes, local_todo_hashes, synced_todo_hashes)
 
 # TODO: Find repeating operations in each condition below and try to modularize them in pre-defined functions.
 
 # Now we compare the dictionaries to determine the required sync operations for each UID item...
 for uid_item in no_dup_uids:
-    # The condition below means the item exists in all dictionaries.
-    # We now have to check the hash and see if it is changed on any side...
+    # The condition below means the item exists in all dictionaries, and we now have to check the hashes to see if it
+    #  was changed on any side...
     if uid_item in server_todo_hashes and uid_item in local_todo_hashes and uid_item in synced_todo_hashes:
         vprint("Item with UID", uid_item, "exists on both sides, we just need to check if the content are the same "
                                           "or there have been any changes.")
@@ -286,57 +433,23 @@ for uid_item in no_dup_uids:
         else:
             vprint("The item is changed at least on one side. The last modification dates will be checked and the "
                    "newer copy will be used as source for synchronization.")
-            for file in os.listdir(local_files_path):
-                if file.endswith('.ics'):
-                    with open(local_files_path + file, 'r') as todo_file:
-                        todo = vobject.base.readOne(todo_file)
-                        todo_uid = str(todo.vtodo.uid)
-                        todo_uid_parsed = todo_uid[todo_uid.find("}") + 1: todo_uid.find(">")]
-                        if todo_uid_parsed == uid_item:
-                            working_file = file
-                            working_local_todo = todo
-                            working_local_todo_uid_parsed = todo_uid_parsed
-                            working_local_todo_modification = str(working_local_todo.vtodo.last_modified)
-                            working_local_todo_modification_parsed = working_local_todo_modification[
-                                                                     working_local_todo_modification.find("}") + 1:
-                                                                     working_local_todo_modification.find(">")]
-            for todo in server_todos:
-                todo_uid = str(todo.instance.vtodo.uid)
-                todo_uid_parsed = todo_uid[todo_uid.find("}") + 1: todo_uid.find(">")]
-                if todo_uid_parsed == uid_item:
-                    working_server_todo_caldav = todo
-                    working_server_todo = todo.instance
-                    working_server_todo_uid_parsed = todo_uid_parsed
-                    working_server_todo_modification = str(working_server_todo.vtodo.last_modified)
-                    working_server_todo_modification_parsed = working_server_todo_modification[
-                                                              working_server_todo_modification.find("}") + 1:
-                                                              working_server_todo_modification.find(">")]
-            working_local_todo_modification_datetime = datetime.strptime(working_local_todo_modification_parsed,
-                                                                         "%Y-%m-%d %H:%M:%S")
-            working_server_todo_modification_datetime = datetime.strptime(working_server_todo_modification_parsed,
-                                                                          "%Y-%m-%d %H:%M:%S")
-            if working_server_todo_modification_datetime > working_local_todo_modification_datetime:
-                vprint("Server copy was modified later. Taking server copy as source and updating local copy...")
-                working_local_todo = working_server_todo
-                with open(local_files_path + working_file, 'w') as updating_local_file:
-                    updating_local_file.write(working_local_todo.serialize())
-                vprint("[bright_green]Local copy was successfully overwritten with the server copy.")
-            elif working_server_todo_modification_datetime < working_local_todo_modification_datetime:
-                vprint("Local copy was modified later. Taking local copy as source and updating the server copy...")
-                working_server_todo_caldav.vobject_instance = working_local_todo
-                working_server_todo_caldav.save()
-                vprint("[bright_green]Server copy was successfully overwritten with the local copy.")
-            else:
-                vprint("Both modification date/times are the same. Taking server copy as source and updating local "
-                       "copy...")
-                working_local_todo = working_server_todo
-                with open(local_files_path + working_file, 'w') as updating_local_file:
-                    updating_local_file.write(working_local_todo.serialize())
-                vprint("[bright_green]Local copy was successfully overwritten with the server copy.")
+            working_local_todo = file_vtodo_finder(local_files_path, uid_item)
+            working_server_todo = server_vtodo_finder(server_todos, uid_item)
 
-    # The item below is only stored on the sever.
-    # It must have been created on the server in the interval between current synchronization and the previous one.
-    #   Such items must be created in the local copies.
+            if working_server_todo[3] > working_local_todo[3]:
+                vprint("Server copy was modified later. Taking server copy as source and updating local copy...")
+                file_todo_writer(local_files_path, working_local_todo[1], working_server_todo[2])
+
+            elif working_server_todo[3] < working_local_todo[3]:
+                vprint("Local copy was modified later. Taking local copy as source and updating the server copy...")
+                server_todo_updater(working_server_todo[1], working_local_todo[2])
+
+            else:
+                vprint("Modification date/times are the same. Taking server copy as source and updating local copy...")
+                file_todo_writer(local_files_path, working_local_todo[1], working_server_todo[2])
+
+    # The item below is only stored on the sever, so it must have been created on the server in the interval between
+    #  current synchronization and the previous one. Such items must be created in the local copies.
     elif uid_item in server_todo_hashes and uid_item not in local_todo_hashes and uid_item not in \
             synced_todo_hashes:
         vprint("Item with UID", uid_item, "has been created on the server after the previous sync and is not "
