@@ -79,12 +79,12 @@ def server_connect(url: str = server_url, usrname: str = keyring.get_password("p
     library class instance from the connection to be accessed by other modules.
 
     Mandatory arguments are:
-        - url: URL of the CalDAV server. If not provided, defaults to the value
-            stored in configuration.py file.
-        - usr: Username to access the CalDAV server. If not provided, defaults to
-            the value stored in the local keychain.
-        - pas: Password to access the CalDAV server. If not provided, defaults to
-            the value stored in the local keychain.
+        - url:  URL of the CalDAV server. If not provided, default to the value
+                stored in configuration.py file.
+        - usr:  Username to access the CalDAV server. If not provided, defaults
+                to the value stored in the local keychain.
+        - pas:  Password to access the CalDAV server. If not provided, defaults
+                to the value stored in the local keychain.
 
     Returns:
         Server class object of the remote server.
@@ -325,8 +325,8 @@ def server_vtodo_finder(server_todos: list, uid: str) -> list:
         - server_todos  : A list containing the VTODOs on a CalDAV servre in the
                           format similar to what the Python CalDAV library
                           generates.
-        - uid           : A string containing the uid of the VTODO the function will
-                          search for.
+        - uid           : A string containing the uid of the VTODO the function
+                          will search for.
 
     Returns:
         A list, defined and indexed as below:
@@ -358,14 +358,14 @@ def server_vtodo_finder(server_todos: list, uid: str) -> list:
 def file_todo_writer(path: str, filename: str, data: object) -> None:
     """ICS File VTODO Updater/Creator
 
-    File_todo_writer accepts a path and a filename as target and
-    overwrites/creates the target with the data provided as a VObject VTODO
+    File_todo_writer accepts a path and a filename (with extension) as target
+    and overwrites/creates the target with the data provided as a VObject VTODO
     instance.
 
     Parameters:
-        - path      :   A string, containing the path to the file that should be created
-                        or overwritten.
-        - filename  : A string containing the name and extension of the target
+        - path      :   A string, containing the path to the file that should be
+                        created or overwritten.
+        - filename  :   A string containing the name and extension of the target
                         file.
         - data      :   VObject instance, holding the VTODO data that should be
                         written to the target file.
@@ -448,24 +448,16 @@ for uid_item in no_dup_uids:
                 vprint("Modification date/times are the same. Taking server copy as source and updating local copy...")
                 file_todo_writer(local_files_path, working_local_todo[1], working_server_todo[2])
 
-    # The item below is only stored on the sever, so it must have been created on the server in the interval between
-    #  current synchronization and the previous one. Such items must be created in the local copies.
     elif uid_item in server_todo_hashes and uid_item not in local_todo_hashes and uid_item not in \
             synced_todo_hashes:
+        # TODO: Thoroughly test and evaluate this condition as in the modularized version of the synchronizer we have
+        #  tried to use the file_todo_writer function with uses .write() instead of .writelines() and this approach is
+        #  not compatible with the initially working code.
         vprint("Item with UID", uid_item, "has been created on the server after the previous sync and is not "
                                           "present in the synchronized items list or local items. Server item will "
                                           "be used as source to create the item locally...")
-        for todo in server_todos:
-            todo_uid = str(todo.instance.vtodo.uid)
-            todo_uid_parsed = todo_uid[todo_uid.find("}") + 1: todo_uid.find(">")]
-            if todo_uid_parsed == uid_item:
-                working_server_todo_caldav = todo
-                working_server_todo = todo.instance
-        working_local_todo = working_server_todo.serialize()
-        working_filename = str(uuid.uuid4()).upper()
-        with open(local_files_path + working_filename + ".ics", "w") as working_file:
-            working_file.writelines(str(working_local_todo))
-        vprint("[bright_green]Local copy was successfully created based on the server copy.")
+        working_server_todo = server_vtodo_finder(server_todos, uid_item)
+        file_todo_writer(local_files_path, str(uuid.uuid4()).upper() + ".ics", working_server_todo[1].serialize())
 
     # The item below only exists locally.
     # It must have been created locally between this synchronization and the previous one.
