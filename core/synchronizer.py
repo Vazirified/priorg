@@ -12,11 +12,6 @@ from rich.console import Console
 
 console = Console()
 
-
-# TODO: Wrap applicable parts in callable function definitions so that we can call them from the main procedures in
-#  the future. The functions that are used everywhere should naturally be taken out of this file, saved to a mutual
-#  modules file and imported in every use case...
-
 # TODO:
 #  Write a setup utility for managing username and password of the CalDAV server in they OS keychain through
 #  keyring.
@@ -460,135 +455,132 @@ def file_vtodo_eraser(path, filename) -> None:
     vprint("[bright_green]Local copy was successfully deleted.")
 
 
-# =====================================================================================================================
-# ========= Main Procedures of The Synchronizer - Minimized for a Blackbox Approach ===================================
-# =====================================================================================================================
+def server_filesystem_synchronizer () -> None:
+    """Server/Filesystem VTODO Synchronizer
 
-vprint("[bright_blue]Synchronization module started.")
+    Server_filesystem_synchronizer connects to the remote server when it is
+    called, creates required objects and lists the calendars and VTODOs on the
+    server along with required dictionaries from the available items on the
+    server, available items in the local filesystem and previously synchronized
+    items and their content hash digests. Then it makes needed comparisons and
+    changes/synchronizes the VTODO items bi-directionally. In the end, when
+    synchronization is complete, it renews the synced items list, closes the
+    connection to the server and exits without returning any value.
 
-server_session = server_connect()
-server_calendars = calendar_discovery(server_session)
-server_todos = server_todos_lister(server_calendars)
-server_todo_hashes = server_todo_hasher(server_todos)
-local_todo_hashes = ics_files_hasher(local_files_path)
-synced_todo_hashes = json_file_reader(local_files_path, 'synced_todo_hashes')
+    Returns:
+        None.
+    """
 
-# =====================================================================================================================
+    vprint("[bright_blue]Synchronization module started.")
+    server_session = server_connect()
+    server_calendars = calendar_discovery(server_session)
+    server_todos = server_todos_lister(server_calendars)
+    server_todo_hashes = server_todo_hasher(server_todos)
+    local_todo_hashes = ics_files_hasher(local_files_path)
+    synced_todo_hashes = json_file_reader(local_files_path, 'synced_todo_hashes')
+    no_dup_uids = dictionary_keys_lister(server_todo_hashes, local_todo_hashes, synced_todo_hashes)
 
-no_dup_uids = dictionary_keys_lister(server_todo_hashes, local_todo_hashes, synced_todo_hashes)
-
-# TODO: Find repeating operations in each condition below and try to modularize them in pre-defined functions.
-
-# Now we compare the dictionaries to determine the required sync operations for each UID item...
-for uid_item in no_dup_uids:
-    # The condition below means the item exists in all dictionaries, and we now have to check the hashes to see if it
-    #  was changed on any side...
-    if uid_item in server_todo_hashes and uid_item in local_todo_hashes and uid_item in synced_todo_hashes:
-        vprint("Item with UID", uid_item, "exists on both sides, we just need to check if the content are the same "
-                                          "or there have been any changes.")
-        if server_todo_hashes[uid_item] == synced_todo_hashes[uid_item] and \
-                local_todo_hashes[uid_item] == synced_todo_hashes[uid_item]:
-            vprint("The item is the same on both sides. No further action needed.")
-        else:
-            vprint("The item is changed at least on one side. The last modification dates will be checked and the "
-                   "newer copy will be used as source for synchronization.")
-            working_local_todo = file_vtodo_finder(local_files_path, uid_item)
-            working_server_todo = server_vtodo_finder(server_todos, uid_item)
-
-            if working_server_todo[3] > working_local_todo[3]:
-                vprint("Server copy was modified later. Taking server copy as source and updating local copy...")
-                file_todo_writer(local_files_path, working_local_todo[1], working_server_todo[2])
-
-            elif working_server_todo[3] < working_local_todo[3]:
-                vprint("Local copy was modified later. Taking local copy as source and updating the server copy...")
-                server_todo_updater(working_server_todo[1], working_local_todo[2])
-
+    # Now we compare the dictionaries to determine the required sync operations for each UID item...
+    for uid_item in no_dup_uids:
+        if uid_item in server_todo_hashes and uid_item in local_todo_hashes and uid_item in synced_todo_hashes:
+            vprint("Item with UID", uid_item, "exists on both sides, we just need to check if the content are the same "
+                                              "or there have been any changes.")
+            if server_todo_hashes[uid_item] == synced_todo_hashes[uid_item] and \
+                    local_todo_hashes[uid_item] == synced_todo_hashes[uid_item]:
+                vprint("The item is the same on both sides. No further action needed.")
             else:
-                vprint("Modification date/times are the same. Taking server copy as source and updating local copy...")
-                file_todo_writer(local_files_path, working_local_todo[1], working_server_todo[2])
+                vprint("The item is changed at least on one side. The last modification dates will be checked and the "
+                       "newer copy will be used as source for synchronization.")
+                working_local_todo = file_vtodo_finder(local_files_path, uid_item)
+                working_server_todo = server_vtodo_finder(server_todos, uid_item)
 
-    elif uid_item in server_todo_hashes and uid_item not in local_todo_hashes and uid_item not in \
-            synced_todo_hashes:
-        # TODO: Thoroughly test and evaluate this condition as in the modularized version of the synchronizer we have
-        #  tried to use the file_todo_writer function with uses .write() instead of .writelines() and this approach is
-        #  not compatible with the initially working code.
-        vprint("Item with UID", uid_item, "has been created on the server after the previous sync and is not "
-                                          "present in the synchronized items list or local items. Server item will "
-                                          "be used as source to create the item locally...")
-        working_server_todo = server_vtodo_finder(server_todos, uid_item)
-        file_todo_writer(local_files_path, str(uuid.uuid4()).upper() + ".ics", working_server_todo[1].serialize())
+                if working_server_todo[3] > working_local_todo[3]:
+                    vprint("Server copy was modified later. Taking server copy as source and updating local copy...")
+                    file_todo_writer(local_files_path, working_local_todo[1], working_server_todo[2])
 
-    elif uid_item not in server_todo_hashes and uid_item in local_todo_hashes and uid_item not in \
-            synced_todo_hashes:
-        vprint("Item with UID", uid_item,
-               "has been created after the previous synchronization and is not present on "
-               "The remote server. Local ICS file will be used as source to create the "
-               "assignment on server.")
-        working_local_todo = file_vtodo_finder(local_files_path, uid_item)
-        server_todo_creator(server_calendars[calendar_selection(server_calendars)], working_local_todo[2])
+                elif working_server_todo[3] < working_local_todo[3]:
+                    vprint("Local copy was modified later. Taking local copy as source and updating the server copy...")
+                    server_todo_updater(working_server_todo[1], working_local_todo[2])
 
-    elif uid_item not in server_todo_hashes and uid_item not in local_todo_hashes and uid_item in \
-            synced_todo_hashes:
-        vprint("[bright_yellow]Item with UID", uid_item,
-               "[bright_yellow]which was present after previous sync is now "
-               "deleted both remotely and locally between this and previous "
-               "synchronization (which is a bit strange)!")
-        vprint("No further action required.")
+                else:
+                    vprint("Modification date/times are the same. Taking server copy as source and updating local copy...")
+                    file_todo_writer(local_files_path, working_local_todo[1], working_server_todo[2])
 
-    elif uid_item in server_todo_hashes and uid_item in local_todo_hashes and uid_item not in synced_todo_hashes:
-        vprint("[bright_yellow]Item with UID", uid_item,
-               "[bright_yellow]is created both remotely and locally between "
-               "this and previous sync! This usually indicates a problem as "
-               "UID collisions between separate items are nearly impossible!")
-        if server_todo_hashes[uid_item] == local_todo_hashes[uid_item]:
-            vprint("This item has equal contents on both sides. No further action required.")
-        else:
-            vprint("This item has different contents on different sides. Searching for the item with a newer "
-                   "modification date/time to accept as synchronization source...")
-            working_local_todo = file_vtodo_finder(local_files_path, uid_item)
+        elif uid_item in server_todo_hashes and uid_item not in local_todo_hashes and uid_item not in \
+                synced_todo_hashes:
+            # TODO: Thoroughly test and evaluate this condition as in the modularized version of the synchronizer we have
+            #  tried to use the file_todo_writer function with uses .write() instead of .writelines() and this approach is
+            #  not compatible with the initially working code.
+            vprint("Item with UID", uid_item, "has been created on the server after the previous sync and is not "
+                                              "present in the synchronized items list or local items. Server item will "
+                                              "be used as source to create the item locally...")
             working_server_todo = server_vtodo_finder(server_todos, uid_item)
+            file_todo_writer(local_files_path, str(uuid.uuid4()).upper() + ".ics", working_server_todo[1].serialize())
 
-            if working_server_todo[3] > working_local_todo[3]:
-                vprint("Server copy was modified later. Taking server copy as source and updating local copy...")
-                file_todo_writer(local_files_path, working_local_todo[1], working_server_todo[2])
+        elif uid_item not in server_todo_hashes and uid_item in local_todo_hashes and uid_item not in \
+                synced_todo_hashes:
+            vprint("Item with UID", uid_item,
+                   "has been created after the previous synchronization and is not present on "
+                   "The remote server. Local ICS file will be used as source to create the "
+                   "assignment on server.")
+            working_local_todo = file_vtodo_finder(local_files_path, uid_item)
+            server_todo_creator(server_calendars[calendar_selection(server_calendars)], working_local_todo[2])
 
-            elif working_server_todo[3] < working_local_todo[3]:
-                vprint("Local copy was modified later. Taking local copy as source and updating the server copy...")
-                server_todo_updater(working_server_todo[1], working_local_todo[2])
+        elif uid_item not in server_todo_hashes and uid_item not in local_todo_hashes and uid_item in \
+                synced_todo_hashes:
+            vprint("[bright_yellow]Item with UID", uid_item,
+                   "[bright_yellow]which was present after previous sync is now "
+                   "deleted both remotely and locally between this and previous "
+                   "synchronization (which is a bit strange)!")
+            vprint("No further action required.")
+
+        elif uid_item in server_todo_hashes and uid_item in local_todo_hashes and uid_item not in synced_todo_hashes:
+            vprint("[bright_yellow]Item with UID", uid_item,
+                   "[bright_yellow]is created both remotely and locally between "
+                   "this and previous sync! This usually indicates a problem as "
+                   "UID collisions between separate items are nearly impossible!")
+            if server_todo_hashes[uid_item] == local_todo_hashes[uid_item]:
+                vprint("This item has equal contents on both sides. No further action required.")
             else:
-                vprint(
-                    "[bright_yellow]Both modification date/times are the same.[/] Taking server copy as source and "
-                    "updating local copy...")
-                file_todo_writer(local_files_path, working_local_todo[1], working_server_todo[2])
+                vprint("This item has different contents on different sides. Searching for the item with a newer "
+                       "modification date/time to accept as synchronization source...")
+                working_local_todo = file_vtodo_finder(local_files_path, uid_item)
+                working_server_todo = server_vtodo_finder(server_todos, uid_item)
 
-    elif uid_item in server_todo_hashes and uid_item not in local_todo_hashes and uid_item in synced_todo_hashes:
-        vprint("Item with UID", uid_item, "was deleted locally in the interval between this and the "
-                                          "previous synchronization. This item will be deleted from the server...")
-        working_server_todo = server_vtodo_finder(server_todos, uid_item)
-        server_vtodo_eraser(working_server_todo[1])
+                if working_server_todo[3] > working_local_todo[3]:
+                    vprint("Server copy was modified later. Taking server copy as source and updating local copy...")
+                    file_todo_writer(local_files_path, working_local_todo[1], working_server_todo[2])
 
-    elif uid_item not in server_todo_hashes and uid_item in local_todo_hashes and uid_item in synced_todo_hashes:
-        vprint("Item with UID", uid_item, "was deleted from the remote server in the interval between this and the "
-                                          "previous synchronization. This item will be deleted from local files...")
-        working_local_todo = file_vtodo_finder(local_files_path, uid_item)
-        file_vtodo_eraser(local_files_path, working_local_todo[1])
+                elif working_server_todo[3] < working_local_todo[3]:
+                    vprint("Local copy was modified later. Taking local copy as source and updating the server copy...")
+                    server_todo_updater(working_server_todo[1], working_local_todo[2])
+                else:
+                    vprint(
+                        "[bright_yellow]Both modification date/times are the same.[/] Taking server copy as source and "
+                        "updating local copy...")
+                    file_todo_writer(local_files_path, working_local_todo[1], working_server_todo[2])
 
-    # The situation below means that something has gone wrong as it is impossible to happen!
-    # This "else" statement should not really exist, but let's include it for now and raise some kind of error if
-    #  this happens...
-    else:
-        vprint("[bright_red]There seems to be a problem with the PRIORG data.\n"
-               "This can be an unknown problem with the server or the local filesystem, or the data is corrupted. "
-               "You may need to investigate this error manually before changing/synchronizing anything.")
+        elif uid_item in server_todo_hashes and uid_item not in local_todo_hashes and uid_item in synced_todo_hashes:
+            vprint("Item with UID", uid_item, "was deleted locally in the interval between this and the "
+                                              "previous synchronization. This item will be deleted from the server...")
+            working_server_todo = server_vtodo_finder(server_todos, uid_item)
+            server_vtodo_eraser(working_server_todo[1])
 
-# Another dictionary is created from the local "synced" ICS file with their UID and the SHA256 digest of their
-#  content
-#  as local_todo_hashes.
-vprint("[bright_green]Synchronization completed successfully.")
+        elif uid_item not in server_todo_hashes and uid_item in local_todo_hashes and uid_item in synced_todo_hashes:
+            vprint("Item with UID", uid_item, "was deleted from the remote server in the interval between this and the "
+                                              "previous synchronization. This item will be deleted from local files...")
+            working_local_todo = file_vtodo_finder(local_files_path, uid_item)
+            file_vtodo_eraser(local_files_path, working_local_todo[1])
 
-# =====================================================================================================================
+        else:
+            vprint("[bright_red]There seems to be a problem with the PRIORG data.\n"
+                   "This can be an unknown problem with the server or the local filesystem, or the data is corrupted. "
+                   "You may need to investigate this error manually before changing/synchronizing anything.")
 
-synced_todo_hashes = ics_files_hasher(local_files_path)
-json_file_writer(local_files_path, 'synced_todo_hashes', synced_todo_hashes)
-server_disconnect(server_session)
-vprint("[bright_blue]Synchronization module operations finished.")
+    vprint("[bright_green]Synchronization completed successfully.")
+    json_file_writer(local_files_path, 'synced_todo_hashes', ics_files_hasher(local_files_path))
+    server_disconnect(server_session)
+    vprint("[bright_blue]Synchronization module operations finished.")
+
+if __name__ == "__main__":
+    server_filesystem_synchronizer()
