@@ -440,6 +440,26 @@ def server_vtodo_eraser(item) -> None:
     vprint("[bright_green]Addressed VTODO item on the server was successfully deleted.")
 
 
+def file_vtodo_eraser(path, filename) -> None:
+    """File VTODO Eraser
+
+    File_vtodo_eraser receives a path and a filename (which includes the
+    extension) and deletes it from the filesystem.
+
+    Arguments:
+        path    :   Relative path to the directory that contains the file which
+                    is to be deleted.
+        filename:   Filename of the file which should be deleted, which should
+                    contain the extension.
+
+    Returns:
+        None
+    """
+    vprint("Attempting to remove the addressed file...")
+    os.remove(path + filename)
+    vprint("[bright_green]Local copy was successfully deleted.")
+
+
 # =====================================================================================================================
 # ========= Main Procedures of The Synchronizer - Minimized for a Blackbox Approach ===================================
 # =====================================================================================================================
@@ -547,22 +567,11 @@ for uid_item in no_dup_uids:
         working_server_todo = server_vtodo_finder(server_todos, uid_item)
         server_vtodo_eraser(working_server_todo[1])
 
-    # The item below exists locally and was present after the previous synchronization, but is not on the server.
-    # Such an item must have been deleted from the server between the two synchronizations and must be deleted
-    #  locally too.
     elif uid_item not in server_todo_hashes and uid_item in local_todo_hashes and uid_item in synced_todo_hashes:
         vprint("Item with UID", uid_item, "was deleted from the remote server in the interval between this and the "
                                           "previous synchronization. This item will be deleted from local files...")
-        for file in os.listdir(local_files_path):
-            if file.endswith('.ics'):
-                with open(local_files_path + file, 'r') as todo_file:
-                    working_todo = vobject.base.readOne(todo_file)
-                    working_todo_uid = str(working_todo.vtodo.uid)
-                    working_todo_uid_parsed = working_todo_uid[
-                                              working_todo_uid.find("}") + 1: working_todo_uid.find(">")]
-                    if working_todo_uid_parsed == uid_item:
-                        os.remove(local_files_path + file)
-                        vprint("[bright_green]Local copy was successfully deleted.")
+        working_local_todo = file_vtodo_finder(local_files_path, uid_item)
+        file_vtodo_eraser(local_files_path, working_local_todo[1])
 
     # The situation below means that something has gone wrong as it is impossible to happen!
     # This "else" statement should not really exist, but let's include it for now and raise some kind of error if
