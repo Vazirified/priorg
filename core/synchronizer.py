@@ -423,6 +423,23 @@ def server_todo_creator(calendar: list, data: object) -> None:
     vprint("[bright_green]Server copy was successfully created using the provided icalendar data.")
 
 
+def server_vtodo_eraser(item) -> None:
+    """Server VTODO Eraser
+
+    Server_vtodo_eraser receives a VTODO object in Python CalDAV VTODO objects
+    format and deletes it from the CalDAV server.
+
+    Arguments:
+        item    :   A VTODO object instance in the format provided by Python
+                    CalDAV library.
+    Returns:
+        None.
+    """
+    vprint("Attempting to delete the addressed VTODO item...")
+    item.delete()
+    vprint("[bright_green]Addressed VTODO item on the server was successfully deleted.")
+
+
 # =====================================================================================================================
 # ========= Main Procedures of The Synchronizer - Minimized for a Blackbox Approach ===================================
 # =====================================================================================================================
@@ -524,20 +541,11 @@ for uid_item in no_dup_uids:
                     "updating local copy...")
                 file_todo_writer(local_files_path, working_local_todo[1], working_server_todo[2])
 
-    # The item below is on the server and was present after the previous synchronization, but does not exist
-    #  locally.
-    # Such an item must have been deleted locally between the two synchronizations and must be deleted
-    #  from the server too.
     elif uid_item in server_todo_hashes and uid_item not in local_todo_hashes and uid_item in synced_todo_hashes:
         vprint("Item with UID", uid_item, "was deleted locally in the interval between this and the "
                                           "previous synchronization. This item will be deleted from the server...")
-        for todo in server_todos:
-            working_server_todo_uid = str(todo.instance.vtodo.uid)
-            working_server_todo_uid_parsed = working_server_todo_uid[working_server_todo_uid.find("}") + 1:
-                                                                     working_server_todo_uid.find(">")]
-            if working_server_todo_uid_parsed == uid_item:
-                todo.delete()
-                vprint("[bright_green]Server copy was successfully deleted.")
+        working_server_todo = server_vtodo_finder(server_todos, uid_item)
+        server_vtodo_eraser(working_server_todo[1])
 
     # The item below exists locally and was present after the previous synchronization, but is not on the server.
     # Such an item must have been deleted from the server between the two synchronizations and must be deleted
