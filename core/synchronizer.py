@@ -12,12 +12,16 @@ from rich.console import Console
 
 console = Console()
 
-# TODO:
-#  Write a setup utility for managing username and password of the CalDAV server in they OS keychain through
+# TODO: Write a setup utility for managing username and password of the CalDAV server in the OS keychain through
 #  keyring.
 #  The remote username/password are saved to
 #  ("priorg-caldav", "username", "password") and the username can be accessed
 #  from ("priorg-caldav", "priorg", "username").
+
+# TODO: We should have functions that check for existence of server definition and local_files_path definition and
+#  ask user to provide the missing elements.
+
+# TODO: Re-write code documentation wherever required.
 
 # This 'if' statement will check if verbose_mode flag from configuration is set to true, in which case defined vprint
 #  function as such that it works as print function (so that all the verbose messages which are passed to vprint are
@@ -503,14 +507,15 @@ def server_filesystem_synchronizer () -> None:
                     server_todo_updater(working_server_todo[1], working_local_todo[2])
 
                 else:
-                    vprint("Modification date/times are the same. Taking server copy as source and updating local copy...")
+                    vprint("Modification date/times are the same. Taking server copy as source and updating local "
+                           "copy...")
                     file_todo_writer(local_files_path, working_local_todo[1], working_server_todo[2])
 
         elif uid_item in server_todo_hashes and uid_item not in local_todo_hashes and uid_item not in \
                 synced_todo_hashes:
-            # TODO: Thoroughly test and evaluate this condition as in the modularized version of the synchronizer we have
-            #  tried to use the file_todo_writer function with uses .write() instead of .writelines() and this approach is
-            #  not compatible with the initially working code.
+            # TODO: Thoroughly test and evaluate this condition as in the modularized version of the synchronizer we
+            #  have tried to use the file_todo_writer function with uses .write() instead of .writelines() and this
+            #  approach is not compatible with the initially working code.
             vprint("Item with UID", uid_item, "has been created on the server after the previous sync and is not "
                                               "present in the synchronized items list or local items. Server item will "
                                               "be used as source to create the item locally...")
