@@ -401,6 +401,28 @@ def server_todo_updater(caldav_item: object, data: object) -> None:
     vprint("[bright_green]Server copy was successfully overwritten with the local copy.")
 
 
+def server_todo_creator(calendar: list, data: object) -> None:
+    """Server VTODO Item Creator
+
+    Server_todo_creator receives a calendar from a list of calendars in Python
+    CalDAV library and creates a VTODO entry on it using the data provided in
+    VObject instance format.
+
+    Parameters:
+        - calendar  :   A list item from the list of calendars on a CalDAV
+                        server in Python CalDAV library discovered calendars
+                        format.
+        - data      :   A VObject instance, containing icalendar data to be
+                        created on the server.
+
+    Returns:
+        None.
+    """
+    vprint("Creating a VTODO item on the server, in the chosen calendar, using the provided data...")
+    calendar.save_todo(ical_fragment=data.serialize())
+    vprint("[bright_green]Server copy was successfully created using the provided icalendar data.")
+
+
 # =====================================================================================================================
 # ========= Main Procedures of The Synchronizer - Minimized for a Blackbox Approach ===================================
 # =====================================================================================================================
@@ -459,29 +481,14 @@ for uid_item in no_dup_uids:
         working_server_todo = server_vtodo_finder(server_todos, uid_item)
         file_todo_writer(local_files_path, str(uuid.uuid4()).upper() + ".ics", working_server_todo[1].serialize())
 
-    # The item below only exists locally.
-    # It must have been created locally between this synchronization and the previous one.
-    # Such items must be created on the server.
     elif uid_item not in server_todo_hashes and uid_item in local_todo_hashes and uid_item not in \
             synced_todo_hashes:
         vprint("Item with UID", uid_item,
                "has been created after the previous synchronization and is not present on "
                "The remote server. Local ICS file will be used as source to create the "
                "assignment on server.")
-        for file in os.listdir(local_files_path):
-            if file.endswith('.ics'):
-                with open(local_files_path + file, 'r') as todo_file:
-                    todo = vobject.base.readOne(todo_file)
-                    todo_uid = str(todo.vtodo.uid)
-                    todo_uid_parsed = todo_uid[todo_uid.find("}") + 1: todo_uid.find(">")]
-                    if todo_uid_parsed == uid_item:
-                        vprint(file,
-                               "Will be written to the server in the user selected or default calendar as a "
-                               "VTODO...")
-                        working_local_todo = todo
-                        server_calendars[calendar_selection(server_calendars)].save_todo(
-                            ical_fragment=working_local_todo.serialize())
-                        vprint("[bright_green]Server copy was successfully created using the local copy.")
+        working_local_todo = file_vtodo_finder(local_files_path, uid_item)
+        server_todo_creator(server_calendars[calendar_selection(server_calendars)], working_local_todo[2])
 
     # The item below only exists in the synced list.
     # This means that it was present everywhere during the last synchronization but was deleted from both sides in
