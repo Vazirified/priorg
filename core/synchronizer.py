@@ -490,81 +490,39 @@ for uid_item in no_dup_uids:
         working_local_todo = file_vtodo_finder(local_files_path, uid_item)
         server_todo_creator(server_calendars[calendar_selection(server_calendars)], working_local_todo[2])
 
-    # The item below only exists in the synced list.
-    # This means that it was present everywhere during the last synchronization but was deleted from both sides in
-    #  the interval (which is a bit strange but can happen).
-    # Such an item does not require any action, and it will be deleted from the synced items dictionary at the end
-    #  of current synchronization automatically, but we also need to issue a warning.
     elif uid_item not in server_todo_hashes and uid_item not in local_todo_hashes and uid_item in \
             synced_todo_hashes:
         vprint("[bright_yellow]Item with UID", uid_item,
                "[bright_yellow]which was present after previous sync is now "
                "deleted both remotely and locally between this and previous "
-               "sync!")
+               "synchronization (which is a bit strange)!")
         vprint("No further action required.")
 
-    # Below item exists on server and locally, but it was not present in previous synchronization.
-    # This means that it is miraculously created on both sides with the same UID between this sync and the last one.
-    # We have to check the hashed on both sides, and if not equal, the one with newer modification date must be
-    #  copied to the other side, but we also need to issue a warning for this.
     elif uid_item in server_todo_hashes and uid_item in local_todo_hashes and uid_item not in synced_todo_hashes:
         vprint("[bright_yellow]Item with UID", uid_item,
                "[bright_yellow]is created both remotely and locally between "
                "this and previous sync! This usually indicates a problem as "
-               "UID collisions between separate items are very rare!")
+               "UID collisions between separate items are nearly impossible!")
         if server_todo_hashes[uid_item] == local_todo_hashes[uid_item]:
             vprint("This item has equal contents on both sides. No further action required.")
         else:
             vprint("This item has different contents on different sides. Searching for the item with a newer "
                    "modification date/time to accept as synchronization source...")
-            for file in os.listdir(local_files_path):
-                if file.endswith('.ics'):
-                    with open(local_files_path + file, 'r') as todo_file:
-                        todo = vobject.base.readOne(todo_file)
-                        todo_uid = str(todo.vtodo.uid)
-                        todo_uid_parsed = todo_uid[todo_uid.find("}") + 1: todo_uid.find(">")]
-                        if todo_uid_parsed == uid_item:
-                            working_file = file
-                            working_local_todo = todo
-                            working_local_todo_uid_parsed = todo_uid_parsed
-                            working_local_todo_modification = str(working_local_todo.vtodo.last_modified)
-                            working_local_todo_modification_parsed = working_local_todo_modification[
-                                                                     working_local_todo_modification.find("}") + 1:
-                                                                     working_local_todo_modification.find(">")]
-            for todo in server_todos:
-                todo_uid = str(todo.instance.vtodo.uid)
-                todo_uid_parsed = todo_uid[todo_uid.find("}") + 1: todo_uid.find(">")]
-                if todo_uid_parsed == uid_item:
-                    working_server_todo_caldav = todo
-                    working_server_todo = todo.instance
-                    working_server_todo_uid_parsed = todo_uid_parsed
-                    working_server_todo_modification = str(working_server_todo.vtodo.last_modified)
-                    working_server_todo_modification_parsed = working_server_todo_modification[
-                                                              working_server_todo_modification.find("}") + 1:
-                                                              working_server_todo_modification.find(">")]
-            working_local_todo_modification_datetime = datetime.strptime(working_local_todo_modification_parsed,
-                                                                         "%Y-%m-%d %H:%M:%S")
-            working_server_todo_modification_datetime = datetime.strptime(working_server_todo_modification_parsed,
-                                                                          "%Y-%m-%d %H:%M:%S")
-            if working_server_todo_modification_datetime > working_local_todo_modification_datetime:
+            working_local_todo = file_vtodo_finder(local_files_path, uid_item)
+            working_server_todo = server_vtodo_finder(server_todos, uid_item)
+
+            if working_server_todo[3] > working_local_todo[3]:
                 vprint("Server copy was modified later. Taking server copy as source and updating local copy...")
-                working_local_todo = working_server_todo
-                with open(local_files_path + working_file, 'w') as updating_local_file:
-                    updating_local_file.write(working_local_todo.serialize())
-                vprint("[bright_green]Local copy was successfully overwritten with contents of the server copy.")
-            elif working_server_todo_modification_datetime < working_local_todo_modification_datetime:
+                file_todo_writer(local_files_path, working_local_todo[1], working_server_todo[2])
+
+            elif working_server_todo[3] < working_local_todo[3]:
                 vprint("Local copy was modified later. Taking local copy as source and updating the server copy...")
-                working_server_todo_caldav.vobject_instance = working_local_todo
-                working_server_todo_caldav.save()
-                vprint("[bright_yellow]Server copy was successfully updated with contents of the local copy.")
+                server_todo_updater(working_server_todo[1], working_local_todo[2])
             else:
                 vprint(
                     "[bright_yellow]Both modification date/times are the same.[/] Taking server copy as source and "
                     "updating local copy...")
-                working_local_todo = working_server_todo
-                with open(local_files_path + working_file, 'w') as updating_local_file:
-                    updating_local_file.write(working_local_todo.serialize())
-                vprint("[bright_green]Local copy was successfully updated using the server copy contents.")
+                file_todo_writer(local_files_path, working_local_todo[1], working_server_todo[2])
 
     # The item below is on the server and was present after the previous synchronization, but does not exist
     #  locally.
