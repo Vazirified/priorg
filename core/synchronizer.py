@@ -8,9 +8,7 @@ import uuid
 from datetime import datetime
 # TODO: Write a setup utility to create/edit configuration.py file.
 from configuration import *
-from rich.console import Console
-
-console = Console()
+from richoutput import *
 
 # TODO: Write a setup utility for managing username and password of the CalDAV server in the OS keychain through
 #  keyring.
@@ -22,16 +20,6 @@ console = Console()
 #  ask user to provide the missing elements.
 
 # TODO: Re-write code documentation wherever required.
-
-# This 'if' statement will check if verbose_mode flag from configuration is set to true, in which case defined vprint
-#  function as such that it works as print function (so that all the verbose messages which are passed to vprint are
-#  actually printed), else, vprint function does nothing (as per definition) and the messages are not displayed.
-def vprint(*args, **kwargs):
-    return None
-
-
-if verbose_mode:
-    vprint = console.log
 
 
 def calendar_selection(calendars_list: list) -> int:
