@@ -21,7 +21,7 @@ from richoutput import *
 
 # TODO: Re-write code documentation wherever required.
 
-# TODO: Manage errors and special conditions with exceptions.
+# TODO: Manage errors and special conditions with exceptions, specially those that arise from network problems.
 
 
 def calendar_selection(calendars_list: list) -> int:
@@ -386,7 +386,7 @@ def file_todo_writer(path: str, filename: str, data: object) -> None:
     vprint("Attempting to create/update the file with provided data...")
     with open(path + filename, 'w') as updating_local_file:
         updating_local_file.write(data.serialize())
-    vprint("[bright_green]File was successfully overwritten with the source data.")
+    vprint("[bright_green]File was successfully created (overwritten if already existing) with the source data.")
 
 
 def server_todo_updater(caldav_item: object, data: object) -> None:
@@ -530,20 +530,17 @@ def server_filesystem_synchronizer () -> None:
 
         elif uid_item in server_todo_hashes and uid_item not in local_todo_hashes and uid_item not in \
                 synced_todo_hashes:
-            # TODO: Thoroughly test and evaluate this condition as in the modularized version of the synchronizer we
-            #  have tried to use the file_todo_writer function with uses .write() instead of .writelines() and this
-            #  approach is not compatible with the initially working code.
             vprint("Item with UID", uid_item, "has been created on the server after the previous sync and is not "
                                               "present in the synchronized items list or local items. Server item will "
                                               "be used as source to create the item locally...")
             working_server_todo = server_vtodo_finder(server_todos, uid_item)
-            file_todo_writer(local_files_path, str(uuid.uuid4()).upper() + ".ics", working_server_todo[1].serialize())
+            file_todo_writer(local_files_path, str(uuid.uuid4()).upper() + ".ics", working_server_todo[2])
 
         elif uid_item not in server_todo_hashes and uid_item in local_todo_hashes and uid_item not in \
                 synced_todo_hashes:
             vprint("Item with UID", uid_item,
-                   "has been created after the previous synchronization and is not present on "
-                   "The remote server. Local ICS file will be used as source to create the "
+                   "has been created locally after the previous synchronization and is not present on "
+                   "the remote server. Local ICS file will be used as source to create the "
                    "assignment on server.")
             working_local_todo = file_vtodo_finder(local_files_path, uid_item)
             server_todo_creator(server_calendars[calendar_selection(server_calendars)], working_local_todo[2])
